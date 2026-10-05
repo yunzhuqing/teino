@@ -2,14 +2,19 @@ import "server-only";
 import { after } from "next/server";
 import { sha256 } from "../crypto";
 import type { ApiType } from "../db/schema";
+import { buildUpstreamRequest, convertErrorBody, convertResponse, convertStream, parseClientRequest } from "./convert";
 import { callUpstream, errorResponse, extractKey, parseJsonObject, pickHeaders } from "./http";
+import type { IrRequest } from "./ir";
 import { writeLog, type LogEntry } from "./logs";
 import { loadRoutingContext } from "./repository";
-import { planRoute } from "./routing";
+import { planRoute, upstreamApiType } from "./routing";
 import { isRetryableStatus, mergeUsage, tapSseUsage, type Usage } from "./upstream";
 
 const MAX_ATTEMPTS = Math.max(1, Number(process.env.GATEWAY_MAX_ATTEMPTS) || 3);
+const DEFAULT_MAX_TOKENS = Math.max(1, Number(process.env.GATEWAY_DEFAULT_MAX_TOKENS) || 4096);
 const TAG_HEADER = "x-gateway-tags";
+
+const errMsg = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
 export async function handleGatewayRequest(req: Request, apiType: ApiType): Promise<Response> {
   const started = Date.now();
@@ -30,10 +35,7 @@ export async function handleGatewayRequest(req: Request, apiType: ApiType): Prom
   if (!callerResult.ok) return errorResponse(apiType, 401, callerResult.reason);
   const { caller } = callerResult;
 
-  const plan = planRoute(candidates, { model, apiType, callerTagIds: caller.tagIds, requiredTagIds }).slice(
-    0,
-    MAX_ATTEMPTS,
-  );
+  let plan = planRoute(candidates, { model, apiType, callerTagIds: caller.tagIds, requiredTagIds });
 
   const log: LogEntry = {
     apiKeyId: caller.apiKeyId,
@@ -41,6 +43,7 @@ export async function handleGatewayRequest(req: Request, apiType: ApiType): Prom
     providerId: null,
     modelId: null,
     apiType,
+    upstreamApiType: null,
     model,
     stream: body.stream === true,
     status: 0,
@@ -51,24 +54,57 @@ export async function handleGatewayRequest(req: Request, apiType: ApiType): Prom
   const finish = (status: number, usage: Usage = {}) =>
     writeLog({ ...log, ...usage, status, latencyMs: Date.now() - started, error: errors.join("\n") || undefined });
 
+  // 需要协议转换时只解析一次请求；无法转换则剔除需要转换的上游，只剩同协议上游可用
+  let ir: IrRequest | null = null;
+  let requestError: string | null = null;
+  if (plan.some((t) => upstreamApiType(t, apiType) !== apiType)) {
+    try {
+      ir = parseClientRequest(apiType, body);
+    } catch (err) {
+      requestError = errMsg(err);
+      plan = plan.filter((t) => upstreamApiType(t, apiType) === apiType);
+    }
+  }
+  plan = plan.slice(0, MAX_ATTEMPTS);
+
   if (plan.length === 0) {
-    errors.push(`没有可用于模型 "${model}" 的上游（请检查模型、供应商 API 类型与标签路由）`);
-    after(() => finish(404));
-    return errorResponse(apiType, 404, errors[0]);
+    const status = requestError ? 400 : 404;
+    errors.push(requestError ?? `没有可用于模型 "${model}" 的上游（请检查模型、供应商 API 类型与标签路由）`);
+    after(() => finish(status));
+    return errorResponse(apiType, status, errors[0]);
   }
 
   let lastFailure: { status: number; text: string; headers: Headers } | null = null;
+  const ctx = { model, request: body };
 
   for (const target of plan) {
+    const upstream = upstreamApiType(target, apiType);
+    const converting = upstream !== apiType;
+
+    let upstreamBody: Record<string, unknown>;
+    if (converting) {
+      try {
+        upstreamBody = buildUpstreamRequest(upstream, ir!, target.upstreamModel, target.defaultMaxTokens ?? DEFAULT_MAX_TOKENS);
+      } catch (err) {
+        // 该上游协议无法表达此请求（如 Responses 不支持停止词），换下一个
+        requestError = errMsg(err);
+        errors.push(`${target.provider.name}: ${requestError}`);
+        continue;
+      }
+    } else {
+      upstreamBody = { ...body, model: target.upstreamModel };
+    }
+
     log.attempts++;
     log.providerId = target.provider.id;
     log.modelId = target.modelId;
+    log.upstreamApiType = converting ? upstream : null;
 
     let res: Response;
     try {
-      res = await callUpstream(req, apiType, target, body);
+      res = await callUpstream(req, upstream, target, upstreamBody);
     } catch (err) {
-      errors.push(`${target.provider.name}: ${err instanceof Error ? err.message : String(err)}`);
+      errors.push(`${target.provider.name}: ${errMsg(err)}`);
       if (req.signal.aborted) break;
       continue;
     }
@@ -77,7 +113,9 @@ export async function handleGatewayRequest(req: Request, apiType: ApiType): Prom
     if (!res.ok && isRetryableStatus(res.status)) {
       const text = await res.text().catch(() => "");
       errors.push(`${target.provider.name}: HTTP ${res.status} ${text.slice(0, 300)}`);
-      lastFailure = { status: res.status, text, headers: pickHeaders(res.headers) };
+      lastFailure = converting
+        ? { status: res.status, text: convertErrorBody(apiType, res.status, text), headers: new Headers({ "content-type": "application/json" }) }
+        : { status: res.status, text, headers: pickHeaders(res.headers) };
       continue;
     }
 
@@ -85,24 +123,69 @@ export async function handleGatewayRequest(req: Request, apiType: ApiType): Prom
     const headers = pickHeaders(res.headers);
     headers.set("x-gateway-provider", encodeURIComponent(target.provider.name));
     headers.set("x-gateway-attempts", String(log.attempts));
-
     const isSse = (res.headers.get("content-type") ?? "").includes("text/event-stream");
+
+    if (!converting) {
+      if (isSse && res.body) {
+        const { stream, done } = tapSseUsage(res.body);
+        after(async () => finish(status, await done));
+        return new Response(stream, { status, headers });
+      }
+      const text = await res.text();
+      const usage: Usage = {};
+      try {
+        mergeUsage(usage, JSON.parse(text));
+      } catch {
+        // 非 JSON 响应
+      }
+      if (!res.ok) errors.push(`${target.provider.name}: HTTP ${status} ${text.slice(0, 300)}`);
+      after(() => finish(status, usage));
+      return new Response(text, { status, headers });
+    }
+
+    // ---- 跨协议：响应从上游协议转换回请求协议 ----
+    headers.set("x-gateway-upstream-api", upstream);
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      errors.push(`${target.provider.name}: HTTP ${status} ${text.slice(0, 300)}`);
+      headers.set("content-type", "application/json");
+      after(() => finish(status));
+      return new Response(convertErrorBody(apiType, status, text), { status, headers });
+    }
+
     if (isSse && res.body) {
-      const { stream, done } = tapSseUsage(res.body);
-      after(async () => finish(status, await done));
+      const { stream, done } = convertStream(upstream, apiType, res.body, ctx);
+      headers.set("content-type", "text/event-stream; charset=utf-8");
+      headers.set("cache-control", "no-cache");
+      after(async () => {
+        const r = await done;
+        if (r.error) errors.push(`${target.provider.name}: 流式转换中断：${r.error}`);
+        await finish(status, r.usage);
+      });
       return new Response(stream, { status, headers });
     }
 
     const text = await res.text();
-    const usage: Usage = {};
     try {
-      mergeUsage(usage, JSON.parse(text));
-    } catch {
-      // 非 JSON 响应
+      const parsed: unknown = JSON.parse(text);
+      const usage: Usage = {};
+      mergeUsage(usage, parsed);
+      const converted = convertResponse(upstream, apiType, parsed, ctx);
+      headers.set("content-type", "application/json");
+      after(() => finish(status, usage));
+      return new Response(JSON.stringify(converted), { status, headers });
+    } catch (err) {
+      errors.push(`${target.provider.name}: 响应转换失败：${errMsg(err)} ${text.slice(0, 300)}`);
+      after(() => finish(502));
+      return errorResponse(apiType, 502, `上游响应无法转换为请求协议：${errMsg(err)}`, Object.fromEntries(headers));
     }
-    if (!res.ok) errors.push(`${target.provider.name}: HTTP ${status} ${text.slice(0, 300)}`);
-    after(() => finish(status, usage));
-    return new Response(text, { status, headers });
+  }
+
+  // 所有上游都因请求无法转换被跳过：属于调用方问题
+  if (log.attempts === 0 && requestError) {
+    after(() => finish(400));
+    return errorResponse(apiType, 400, requestError);
   }
 
   const status = lastFailure?.status ?? 502;

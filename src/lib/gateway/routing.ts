@@ -4,7 +4,8 @@ import type { ApiType } from "../db/schema";
  * 路由核心（纯函数，无 IO，便于测试）
  *
  * 规则：
- * 1. 候选 = 模型名匹配 + 模型启用 + 供应商启用 + 供应商支持本次 API 类型
+ * 1. 候选 = 模型名匹配 + 模型启用 + 供应商启用 + 供应商支持该模型的上游协议
+ *    （模型声明了 apiType 时按声明的协议校验并在必要时转换；否则沿用请求协议）
  * 2. 标签约束：
  *    - 调用方标签 = API Key 标签 ∪ 用户标签。若非空，候选的 (供应商标签 ∪ 模型标签)
  *      必须与之存在交集；调用方无标签则不受限制。
@@ -18,6 +19,8 @@ export interface RouteCandidate {
   modelId: string;
   modelName: string;
   upstreamModel: string;
+  /** 模型声明的上游协议；null 表示沿用请求协议 */
+  modelApiType: ApiType | null;
   priority: number;
   weight: number;
   modelEnabled: boolean;
@@ -42,13 +45,18 @@ export interface RouteRequest {
 
 export type RandomFn = () => number;
 
+/** 该候选实际调用上游时使用的协议 */
+export function upstreamApiType(c: Pick<RouteCandidate, "modelApiType">, requestApiType: ApiType): ApiType {
+  return c.modelApiType ?? requestApiType;
+}
+
 export function filterCandidates<T extends RouteCandidate>(candidates: readonly T[], req: RouteRequest): T[] {
   const caller = new Set(req.callerTagIds);
   const required = req.requiredTagIds ?? [];
 
   return candidates.filter((c) => {
     if (c.modelName !== req.model || !c.modelEnabled) return false;
-    if (!c.provider.enabled || !c.provider.apiTypes.includes(req.apiType)) return false;
+    if (!c.provider.enabled || !c.provider.apiTypes.includes(upstreamApiType(c, req.apiType))) return false;
 
     if (caller.size === 0 && required.length === 0) return true;
     const tags = new Set([...c.provider.tagIds, ...c.modelTagIds]);

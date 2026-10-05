@@ -26,6 +26,8 @@ export interface LogEntry {
   providerId: string | null;
   modelId: string | null;
   apiType: ApiType;
+  /** 发生协议转换时的上游协议 */
+  upstreamApiType?: ApiType | null;
   model: string;
   stream: boolean;
   status: number;

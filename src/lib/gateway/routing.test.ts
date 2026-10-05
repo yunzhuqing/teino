@@ -7,6 +7,7 @@ function cand(id: string, opts: Partial<RouteCandidate> & { providerTags?: strin
     modelId: id,
     modelName: opts.modelName ?? "gpt-4o",
     upstreamModel: opts.upstreamModel ?? "gpt-4o",
+    modelApiType: opts.modelApiType ?? null,
     priority: opts.priority ?? 0,
     weight: opts.weight ?? 100,
     modelEnabled: opts.modelEnabled ?? true,
@@ -32,6 +33,16 @@ test("过滤：模型名、启用状态、API 类型", () => {
     cand("e", { apiTypes: ["anthropic_messages"] }),
   ];
   assert.deepEqual(filterCandidates(list, base).map((c) => c.modelId), ["a"]);
+});
+
+test("协议：模型声明的上游协议按其自身校验供应商，可被其他协议的请求命中", () => {
+  const list = [
+    cand("claude", { modelApiType: "anthropic_messages", apiTypes: ["anthropic_messages"] }),
+    cand("bad", { modelApiType: "openai_responses", apiTypes: ["anthropic_messages"] }),
+    cand("plain", { apiTypes: ["anthropic_messages"] }),
+  ];
+  assert.deepEqual(filterCandidates(list, base).map((c) => c.modelId), ["claude"]);
+  assert.deepEqual(filterCandidates(list, { ...base, apiType: "anthropic_messages" }).map((c) => c.modelId), ["claude", "plain"]);
 });
 
 test("标签：调用方标签需与供应商或模型标签有交集", () => {

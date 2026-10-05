@@ -43,6 +43,8 @@ export async function getProvidersWithModels() {
         providerId: models.providerId,
         name: models.name,
         upstreamModel: models.upstreamModel,
+        apiType: models.apiType,
+        defaultMaxTokens: models.defaultMaxTokens,
         priority: models.priority,
         weight: models.weight,
         enabled: models.enabled,

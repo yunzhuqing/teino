@@ -11,6 +11,7 @@ export interface CallerContext {
 }
 
 export interface CandidateWithSecret extends RouteCandidate {
+  defaultMaxTokens: number | null;
   provider: RouteCandidate["provider"] & {
     baseUrl: string;
     apiKeyEncrypted: string;
@@ -82,6 +83,8 @@ export async function loadRoutingContext(keyHash: string, modelName: string, req
     modelId: r.modelId,
     modelName: r.modelName,
     upstreamModel: r.upstreamModel || r.modelName,
+    modelApiType: r.modelApiType,
+    defaultMaxTokens: r.defaultMaxTokens,
     priority: r.priority,
     weight: r.weight,
     modelEnabled: r.modelEnabled,
@@ -112,6 +115,8 @@ function loadCandidates(modelName: string) {
       modelId: models.id,
       modelName: models.name,
       upstreamModel: models.upstreamModel,
+      modelApiType: models.apiType,
+      defaultMaxTokens: models.defaultMaxTokens,
       priority: models.priority,
       weight: models.weight,
       modelEnabled: models.enabled,

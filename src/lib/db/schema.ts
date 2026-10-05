@@ -61,6 +61,10 @@ export const models = pgTable(
     name: text("name").notNull(),
     /** 发往上游的真实模型名，为空则与 name 相同 */
     upstreamModel: text("upstream_model"),
+    /** 调用上游使用的协议；为空则沿用请求协议（透传）。与请求协议不同时网关自动转换 */
+    apiType: apiTypeEnum("api_type"),
+    /** 转换为 Anthropic Messages 且调用方未传 max_tokens 时使用；为空则用全局默认值 */
+    defaultMaxTokens: integer("default_max_tokens"),
     /** 数值越大优先级越高 */
     priority: integer("priority").notNull().default(0),
     /** 同优先级内的流量权重 */
@@ -127,6 +131,8 @@ export const requestLogs = pgTable(
     providerId: uuid("provider_id").references(() => providers.id, { onDelete: "set null" }),
     modelId: uuid("model_id").references(() => models.id, { onDelete: "set null" }),
     apiType: apiTypeEnum("api_type").notNull(),
+    /** 发生协议转换时记录上游协议；同协议透传为空 */
+    upstreamApiType: apiTypeEnum("upstream_api_type"),
     model: text("model").notNull(),
     stream: boolean("stream").notNull().default(false),
     status: integer("status").notNull(),

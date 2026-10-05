@@ -11,6 +11,7 @@ export async function getRecentLogs(limit = 100) {
       id: requestLogs.id,
       createdAt: requestLogs.createdAt,
       apiType: requestLogs.apiType,
+      upstreamApiType: requestLogs.upstreamApiType,
       model: requestLogs.model,
       stream: requestLogs.stream,
       status: requestLogs.status,

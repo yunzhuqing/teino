@@ -38,10 +38,13 @@ export async function parseJsonObject(req: Request): Promise<Record<string, unkn
   }
 }
 
-/** 调用单个上游；超时只作用于“等待响应头”阶段，不影响后续流式输出 */
+/**
+ * 调用单个上游；超时只作用于“等待响应头”阶段，不影响后续流式输出。
+ * upstreamApiType 决定 URL 与鉴权头，body 为已按该协议构建好的请求体。
+ */
 export async function callUpstream(
   req: Request,
-  apiType: ApiType,
+  upstreamApiType: ApiType,
   target: CandidateWithSecret,
   body: Record<string, unknown>,
 ): Promise<Response> {
@@ -49,10 +52,10 @@ export async function callUpstream(
   const timeout = new AbortController();
   const timer = setTimeout(() => timeout.abort(new Error("等待上游响应超时")), UPSTREAM_TIMEOUT_MS);
   try {
-    return await fetch(buildUpstreamUrl(target.provider.baseUrl, apiType), {
+    return await fetch(buildUpstreamUrl(target.provider.baseUrl, upstreamApiType), {
       method: "POST",
-      headers: buildUpstreamHeaders(apiType, apiKey, req.headers, target.provider.extraHeaders),
-      body: JSON.stringify({ ...body, model: target.upstreamModel }),
+      headers: buildUpstreamHeaders(upstreamApiType, apiKey, req.headers, target.provider.extraHeaders),
+      body: JSON.stringify(body),
       signal: AbortSignal.any([req.signal, timeout.signal]),
     });
   } finally {

@@ -59,7 +59,7 @@ export default async function ProvidersPage() {
                 </div>
                 <div className="flex items-center gap-1">
                   <FormDialog title={`添加模型 · ${p.name}`} action={createModel} triggerClassName="btn-ghost py-1.5 text-xs" trigger={<><Plus className="size-3.5" />模型</>}>
-                    <ModelFields providerId={p.id} tags={tags} />
+                    <ModelFields providerId={p.id} providerApiTypes={p.apiTypes} tags={tags} />
                   </FormDialog>
                   <FormDialog title="编辑供应商" wide action={updateProvider.bind(null, p.id)} triggerClassName="btn-icon" triggerLabel="编辑" trigger={<Pencil className="size-4" />}>
                     <ProviderFields provider={p} tags={tags} />
@@ -67,7 +67,7 @@ export default async function ProvidersPage() {
                   <DeleteButton onDelete={deleteProvider.bind(null, p.id)} confirmText={`删除供应商「${p.name}」及其全部模型？`} />
                 </div>
               </header>
-              <ModelTable providerId={p.id} models={p.models} tags={tags} tagMap={tagMap} />
+              <ModelTable providerId={p.id} providerApiTypes={p.apiTypes} models={p.models} tags={tags} tagMap={tagMap} />
             </section>
           ))}
         </div>

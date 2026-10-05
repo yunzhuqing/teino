@@ -78,13 +78,25 @@ export function ProviderFields({ provider, tags }: { provider?: ProviderValue; t
 interface ModelValue {
   name: string;
   upstreamModel: string | null;
+  apiType: ApiType | null;
+  defaultMaxTokens: number | null;
   priority: number;
   weight: number;
   enabled: boolean;
   tagIds: string[];
 }
 
-export function ModelFields({ providerId, model, tags }: { providerId: string; model?: ModelValue; tags: TagLite[] }) {
+export function ModelFields({
+  providerId,
+  providerApiTypes,
+  model,
+  tags,
+}: {
+  providerId: string;
+  providerApiTypes: readonly ApiType[];
+  model?: ModelValue;
+  tags: TagLite[];
+}) {
   return (
     <>
       <input type="hidden" name="providerId" value={providerId} />
@@ -102,6 +114,31 @@ export function ModelFields({ providerId, model, tags }: { providerId: string; m
           <input id="m-up" name="upstreamModel" defaultValue={model?.upstreamModel ?? ""} className="input font-mono" placeholder="默认与模型名相同" />
         </div>
       </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <label className="label" htmlFor="m-api">
+            上游协议
+          </label>
+          <select id="m-api" name="apiType" defaultValue={model?.apiType ?? ""} className="input">
+            <option value="">沿用请求协议（透传）</option>
+            {API_TYPES.map((t) => (
+              <option key={t} value={t} disabled={!providerApiTypes.includes(t) && model?.apiType !== t}>
+                {API_TYPE_LABELS[t]}
+                {providerApiTypes.includes(t) ? "" : "（供应商未声明）"}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="label" htmlFor="m-max">
+            默认 max_tokens（可选）
+          </label>
+          <input id="m-max" name="defaultMaxTokens" type="number" step={1} min={1} defaultValue={model?.defaultMaxTokens ?? ""} className="input tabular-nums" placeholder="4096" />
+        </div>
+      </div>
+      <p className="-mt-2 text-xs text-zinc-500">
+        设置上游协议后，其他协议的请求（如 Responses → Anthropic）会自动转换后发往上游。默认 max_tokens 仅在转换为 Anthropic Messages 且调用方未传时使用。
+      </p>
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label className="label" htmlFor="m-pri">

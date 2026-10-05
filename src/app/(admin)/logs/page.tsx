@@ -44,7 +44,10 @@ export default async function LogsPage() {
                       {l.model}
                       {l.stream ? <Pill className="ml-1.5">stream</Pill> : null}
                     </td>
-                    <td className="text-xs text-zinc-400">{API_TYPE_LABELS[l.apiType]}</td>
+                    <td className="text-xs whitespace-nowrap text-zinc-400">
+                      {API_TYPE_LABELS[l.apiType]}
+                      {l.upstreamApiType ? <span className="text-sky-300"> → {API_TYPE_LABELS[l.upstreamApiType]}</span> : null}
+                    </td>
                     <td className="text-zinc-300">{l.providerName ?? "—"}</td>
                     <td className="text-xs text-zinc-400">
                       {l.userName ?? "—"}
