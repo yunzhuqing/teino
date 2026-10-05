@@ -15,7 +15,7 @@ const userSchema = z.object({
     .optional()
     .transform((v) => v || null),
   note: z.string().trim().max(200).optional().transform((v) => v || null),
-  enabled: z.unknown().transform((v) => v === "on"),
+  enabled: z.unknown().optional().transform((v) => v === "on"), // 未勾选的复选框不会出现在表单中
   tagIds: z.array(z.uuid()),
 });
 

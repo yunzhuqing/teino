@@ -26,7 +26,7 @@ const expiresSchema = z
 const baseSchema = z.object({
   name: z.string().trim().min(1, "请输入 Key 名称").max(60),
   expiresAt: expiresSchema,
-  enabled: z.unknown().transform((v) => v === "on"),
+  enabled: z.unknown().optional().transform((v) => v === "on"), // 未勾选的复选框不会出现在表单中
   tagIds: z.array(z.uuid()),
 });
 

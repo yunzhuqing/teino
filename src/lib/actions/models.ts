@@ -24,7 +24,7 @@ const modelSchema = z.object({
     .pipe(z.number({ message: "max_tokens 必须是整数" }).int("max_tokens 必须是整数").positive("max_tokens 必须大于 0").max(1_000_000).nullable()),
   priority: z.coerce.number({ message: "优先级必须是整数" }).int("优先级必须是整数").min(-1000).max(1000),
   weight: z.coerce.number({ message: "权重必须是整数" }).int("权重必须是整数").min(0, "权重不能为负").max(10000),
-  enabled: z.unknown().transform((v) => v === "on"),
+  enabled: z.unknown().optional().transform((v) => v === "on"), // 未勾选的复选框不会出现在表单中
   tagIds: z.array(z.uuid()),
 });
 

@@ -31,7 +31,7 @@ const providerSchema = z.object({
   apiKey: z.string().trim().optional(),
   apiTypes: z.array(z.enum(API_TYPES)).min(1, "至少选择一种 API 类型"),
   extraHeaders: headersSchema,
-  enabled: z.unknown().transform((v) => v === "on"),
+  enabled: z.unknown().optional().transform((v) => v === "on"), // 未勾选的复选框不会出现在表单中
   tagIds: z.array(z.uuid()),
 });
 
