@@ -1,0 +1,145 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-geist), ui-sans-serif, system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  @apply bg-[#07070d] text-zinc-100 antialiased;
+}
+
+/* 背景光斑：为磨砂玻璃提供可模糊的色彩 */
+.aurora {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+.aurora::before,
+.aurora::after,
+.aurora span {
+  content: "";
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(90px);
+  opacity: 0.55;
+  will-change: transform;
+}
+.aurora::before {
+  width: 42rem;
+  height: 42rem;
+  left: -10rem;
+  top: -12rem;
+  background: radial-gradient(circle, #7c3aed 0%, transparent 70%);
+  animation: drift 22s ease-in-out infinite alternate;
+}
+.aurora::after {
+  width: 38rem;
+  height: 38rem;
+  right: -12rem;
+  top: 20%;
+  background: radial-gradient(circle, #0ea5e9 0%, transparent 70%);
+  animation: drift 26s ease-in-out infinite alternate-reverse;
+}
+.aurora span {
+  width: 34rem;
+  height: 34rem;
+  left: 30%;
+  bottom: -16rem;
+  background: radial-gradient(circle, #db2777 0%, transparent 70%);
+  opacity: 0.35;
+  animation: drift 30s ease-in-out infinite alternate;
+}
+.aurora i {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+  background-size: 24px 24px;
+  mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+}
+
+@keyframes drift {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(6rem, 4rem, 0) scale(1.15);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aurora::before,
+  .aurora::after,
+  .aurora span {
+    animation: none;
+  }
+}
+
+@utility glass {
+  @apply rounded-2xl border border-white/10 bg-white/[0.04] shadow-[0_8px_32px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-xl;
+}
+@utility glass-strong {
+  @apply rounded-2xl border border-white/15 bg-zinc-900/60 shadow-[0_24px_64px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-2xl;
+}
+@utility input {
+  @apply w-full rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-500 transition outline-none focus:border-violet-400/60 focus:bg-white/[0.07] focus:ring-4 focus:ring-violet-500/15;
+}
+@utility label {
+  @apply mb-1.5 block text-xs font-medium tracking-wide text-zinc-400;
+}
+@utility btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition outline-none focus-visible:ring-4 focus-visible:ring-violet-500/30 disabled:cursor-not-allowed disabled:opacity-50;
+}
+@utility btn-primary {
+  @apply btn bg-gradient-to-br from-violet-500 to-indigo-500 text-white shadow-lg shadow-violet-900/40 hover:from-violet-400 hover:to-indigo-400;
+}
+@utility btn-ghost {
+  @apply btn border border-white/10 bg-white/[0.04] text-zinc-200 hover:bg-white/[0.09];
+}
+@utility btn-icon {
+  @apply inline-flex size-8 items-center justify-center rounded-lg text-zinc-400 transition outline-none hover:bg-white/10 hover:text-zinc-100 focus-visible:ring-2 focus-visible:ring-violet-500/40;
+}
+
+@layer components {
+  .table {
+    @apply w-full text-left text-sm;
+  }
+  .table th {
+    @apply border-b border-white/10 px-4 py-3 text-xs font-medium tracking-wide text-zinc-400;
+  }
+  .table td {
+    @apply border-b border-white/5 px-4 py-3 align-middle;
+  }
+  .table tbody tr {
+    @apply transition-colors hover:bg-white/[0.03];
+  }
+}
+
+dialog::backdrop {
+  background: rgba(3, 3, 8, 0.55);
+  backdrop-filter: blur(6px);
+}
+dialog[open] {
+  animation: pop 0.18s ease-out;
+}
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
