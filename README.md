@@ -34,7 +34,8 @@ npm run dev
 
 1. 导入仓库到 Vercel，在 Storage 中添加 **Neon** 集成（会自动注入 `DATABASE_URL`）
 2. 配置环境变量 `ADMIN_PASSWORD`、`GATEWAY_SECRET`（`openssl rand -base64 32`）
-3. 运行一次迁移：`vercel env pull .env.local && npm run db:migrate`
+3. 数据库迁移会在每次部署时自动执行（`vercel-build` 脚本先运行 `scripts/migrate.mjs` 再 `next build`，已执行的迁移会跳过）。也可以手动执行：`vercel env pull .env.local && npm run db:migrate`
+   - 如果在 Vercel 项目设置里覆盖过 Build Command，请改回默认值或改成 `npm run vercel-build`
 4. 网关路由设置了 `maxDuration = 300`，用于长时间的流式响应（需要 Fluid Compute，新项目默认开启）
 
 > ⚠️ `GATEWAY_SECRET` 同时用于会话签名和供应商密钥加密。修改后已保存的供应商密钥无法解密，需要重新填写。
