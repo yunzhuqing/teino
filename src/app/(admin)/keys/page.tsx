@@ -1,18 +1,44 @@
-import { KeyRound, Pencil, Plus } from "lucide-react";
+import { Coins, KeyRound, Pencil, Plus } from "lucide-react";
 import { FormDialog } from "@/components/form-dialog";
 import { DeleteButton, ToggleSwitch } from "@/components/row-actions";
 import { TagList, type TagLite } from "@/components/tag-badge";
 import { TagPicker } from "@/components/tag-picker";
-import { EmptyState, formatDate, PageHeader } from "@/components/ui";
+import { EmptyState, formatCreditAmount, formatDate, PageHeader } from "@/components/ui";
 import { createApiKey, deleteApiKey, toggleApiKey, updateApiKey } from "@/lib/actions/api-keys";
+import { topUpCredits } from "@/lib/actions/billing";
 import { getApiKeys, getTags, getUserOptions } from "@/lib/queries";
+import { DEFAULT_UTC_OFFSET_MINUTES } from "@/lib/timezone";
 
 type KeyRow = Awaited<ReturnType<typeof getApiKeys>>[number];
 
 function toLocalInput(d: Date | null): string {
   if (!d) return "";
-  const local = new Date(d.getTime() + 8 * 60 * 60 * 1000); // Asia/Shanghai
+  const local = new Date(d.getTime() + DEFAULT_UTC_OFFSET_MINUTES * 60 * 1000); // Asia/Shanghai
   return local.toISOString().slice(0, 16);
+}
+
+function TopUpFields({ apiKey }: { apiKey: KeyRow }) {
+  return (
+    <>
+      <input type="hidden" name="apiKeyId" value={apiKey.id} />
+      <p className="text-sm text-zinc-400">
+        Key「{apiKey.name}」当前余额 <span className="font-mono text-zinc-200">{formatCreditAmount(apiKey.creditBalance)}</span> 积分
+      </p>
+      <div>
+        <label className="label" htmlFor="t-amount">
+          充值数额
+        </label>
+        <input id="t-amount" name="amount" required inputMode="decimal" className="input tabular-nums" placeholder="如 1000" />
+        <p className="mt-1 text-xs text-zinc-500">填负数表示扣减（人工调整）。取值精确到 6 位小数。</p>
+      </div>
+      <div>
+        <label className="label" htmlFor="t-note">
+          备注（可选）
+        </label>
+        <input id="t-note" name="note" className="input" placeholder="如 2026-10 预充值" />
+      </div>
+    </>
+  );
 }
 
 function KeyFields({ apiKey, tags, users }: { apiKey?: KeyRow; tags: TagLite[]; users?: { id: string; name: string }[] }) {
@@ -90,6 +116,7 @@ export default async function KeysPage() {
                   <th>名称</th>
                   <th>Key</th>
                   <th>用户</th>
+                  <th>余额</th>
                   <th>标签</th>
                   <th>状态</th>
                   <th>最近使用</th>
@@ -100,6 +127,7 @@ export default async function KeysPage() {
               <tbody>
                 {keys.map((k) => {
                   const expired = k.expiresAt ? k.expiresAt.getTime() < now : false;
+                  const balance = Number(k.creditBalance);
                   return (
                     <tr key={k.id}>
                       <td className="font-medium">{k.name}</td>
@@ -107,6 +135,9 @@ export default async function KeysPage() {
                         <code className="rounded-md bg-white/5 px-1.5 py-0.5 font-mono text-xs text-zinc-300">{k.keyPrefix}</code>
                       </td>
                       <td className="text-zinc-300">{k.userName}</td>
+                      <td className={`font-mono text-sm tabular-nums ${balance <= 0 ? "text-rose-400" : "text-zinc-200"}`}>
+                        {formatCreditAmount(k.creditBalance)}
+                      </td>
                       <td>
                         <TagList ids={k.tagIds} tags={tagMap} />
                       </td>
@@ -117,6 +148,9 @@ export default async function KeysPage() {
                       <td className={`text-xs ${expired ? "text-rose-400" : "text-zinc-400"}`}>{k.expiresAt ? formatDate(k.expiresAt) : "永不"}</td>
                       <td>
                         <div className="flex justify-end gap-1">
+                          <FormDialog title="充值积分" action={topUpCredits} submitLabel="确认" triggerClassName="btn-icon" triggerLabel="充值" trigger={<Coins className="size-4" />}>
+                            <TopUpFields apiKey={k} />
+                          </FormDialog>
                           <FormDialog title="编辑 API Key" action={updateApiKey.bind(null, k.id)} triggerClassName="btn-icon" triggerLabel="编辑" trigger={<Pencil className="size-4" />}>
                             <KeyFields apiKey={k} tags={tags} />
                           </FormDialog>

@@ -37,6 +37,7 @@ export function ModelTable({
             <th>上游协议</th>
             <th>优先级</th>
             <th>权重</th>
+            <th>计费</th>
             <th>标签</th>
             <th>状态</th>
             <th className="w-24" />
@@ -60,6 +61,20 @@ export function ModelTable({
               <td className="tabular-nums text-zinc-300">
                 {m.weight}
                 {m.weight === 0 ? <span className="ml-1.5 text-xs text-zinc-500">兜底</span> : null}
+              </td>
+              <td>
+                {m.prices.length === 0 ? (
+                  <span className="text-xs text-zinc-600">未配置</span>
+                ) : (
+                  <div className="flex flex-wrap items-center gap-1">
+                    <Pill className={m.billingMode === "credit" ? "border-violet-400/20 bg-violet-500/10 text-violet-200" : "border-amber-400/20 bg-amber-500/10 text-amber-200"}>
+                      {m.billingMode === "credit" ? "积分" : (m.currency ?? "未选币种")}
+                    </Pill>
+                    <span className="text-xs text-zinc-500">{m.prices.length} 档</span>
+                    {/* 主档（最低上下文档）的输入单价，让运营一眼看出量级 */}
+                    {m.prices[0] ? <span className="font-mono text-[11px] text-zinc-500">入 {m.prices[0].inputPrice}/M</span> : null}
+                  </div>
+                )}
               </td>
               <td>
                 <TagList ids={m.tagIds} tags={tagMap} />

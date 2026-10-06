@@ -115,12 +115,27 @@ function buildBlocks(parts: readonly IrPart[]): Obj[] {
 function mapStop(v: unknown): IrStopReason {
   return v === "max_tokens" || v === "stop_sequence" || v === "tool_use" ? v : "end_turn";
 }
+/**
+ * Anthropic 的 input_tokens 本就**不含**缓存部分，因此不再求和：
+ * 缓存命中与写入各自单独计价，混进 inputTokens 会重复计费。
+ * cache_creation_input_tokens 在新版 API 可能是按 TTL 分层的对象（如 {ephemeral_5m_input_tokens: n}），两种形状都要读。
+ */
+function cacheCreationTokens(v: unknown): number {
+  if (typeof v === "number") return Number.isFinite(v) ? v : 0;
+  if (!isObj(v)) return 0;
+  let total = 0;
+  for (const n of Object.values(v)) if (typeof n === "number" && Number.isFinite(n)) total += n;
+  return total;
+}
 
 function parseUsage(u: unknown): IrUsage {
   if (!isObj(u)) return {};
-  const cached = (num(u.cache_read_input_tokens) ?? 0) + (num(u.cache_creation_input_tokens) ?? 0);
-  const input = num(u.input_tokens);
-  return { inputTokens: input === undefined ? undefined : input + cached, outputTokens: num(u.output_tokens) };
+  return {
+    inputTokens: num(u.input_tokens),
+    outputTokens: num(u.output_tokens),
+    cacheReadTokens: num(u.cache_read_input_tokens),
+    cacheWriteTokens: u.cache_creation_input_tokens === undefined ? undefined : cacheCreationTokens(u.cache_creation_input_tokens),
+  };
 }
 
 export const anthropicCodec: Codec = {
@@ -198,7 +213,12 @@ export const anthropicCodec: Codec = {
       content: buildBlocks(ir.content),
       stop_reason: ir.stopReason,
       stop_sequence: null,
-      usage: { input_tokens: ir.usage.inputTokens ?? 0, output_tokens: ir.usage.outputTokens ?? 0 },
+      usage: {
+        input_tokens: ir.usage.inputTokens ?? 0,
+        output_tokens: ir.usage.outputTokens ?? 0,
+        ...(ir.usage.cacheReadTokens ? { cache_read_input_tokens: ir.usage.cacheReadTokens } : {}),
+        ...(ir.usage.cacheWriteTokens ? { cache_creation_input_tokens: ir.usage.cacheWriteTokens } : {}),
+      },
     };
   },
 
@@ -264,12 +284,11 @@ export const anthropicCodec: Codec = {
   async *encodeStream(events, ctx) {
     let id = genId("msg");
     let stopReason: IrStopReason = "end_turn";
-    let inputTokens = 0;
-    let outputTokens = 0;
+    let usage: IrUsage = {};
     for await (const ev of events) {
       switch (ev.type) {
         case "message_start":
-          inputTokens = ev.usage?.inputTokens ?? 0;
+          usage = { ...ev.usage, outputTokens: 0 };
           if (ev.id?.startsWith("msg_")) id = ev.id;
           yield sse(
             {
@@ -282,7 +301,12 @@ export const anthropicCodec: Codec = {
                 content: [],
                 stop_reason: null,
                 stop_sequence: null,
-                usage: { input_tokens: inputTokens, output_tokens: 0 },
+                usage: {
+                  input_tokens: usage.inputTokens ?? 0,
+                  output_tokens: 0,
+                  ...(usage.cacheReadTokens ? { cache_read_input_tokens: usage.cacheReadTokens } : {}),
+                  ...(usage.cacheWriteTokens ? { cache_creation_input_tokens: usage.cacheWriteTokens } : {}),
+                },
               },
             },
             "message_start",
@@ -309,15 +333,23 @@ export const anthropicCodec: Codec = {
           break;
         case "message_delta":
           if (ev.stopReason) stopReason = ev.stopReason;
-          if (ev.usage?.inputTokens !== undefined) inputTokens = ev.usage.inputTokens;
-          if (ev.usage?.outputTokens !== undefined) outputTokens = ev.usage.outputTokens;
+          // 缓存字段只在 message_start 出现，这里只在有值时覆盖，避免被清零
+          if (ev.usage?.inputTokens !== undefined) usage.inputTokens = ev.usage.inputTokens;
+          if (ev.usage?.outputTokens !== undefined) usage.outputTokens = ev.usage.outputTokens;
+          if (ev.usage?.cacheReadTokens !== undefined) usage.cacheReadTokens = ev.usage.cacheReadTokens;
+          if (ev.usage?.cacheWriteTokens !== undefined) usage.cacheWriteTokens = ev.usage.cacheWriteTokens;
           break;
         case "message_stop":
           yield sse(
             {
               type: "message_delta",
               delta: { stop_reason: stopReason, stop_sequence: null },
-              usage: { input_tokens: inputTokens, output_tokens: outputTokens },
+              usage: {
+                input_tokens: usage.inputTokens ?? 0,
+                output_tokens: usage.outputTokens ?? 0,
+                ...(usage.cacheReadTokens ? { cache_read_input_tokens: usage.cacheReadTokens } : {}),
+                ...(usage.cacheWriteTokens ? { cache_creation_input_tokens: usage.cacheWriteTokens } : {}),
+              },
             },
             "message_delta",
           );

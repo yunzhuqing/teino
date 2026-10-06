@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, BookOpen, KeyRound, LayoutDashboard, LogOut, Server, Sparkles, Tags, Users } from "lucide-react";
+import { Activity, BookOpen, Coins, KeyRound, LayoutDashboard, LogOut, Server, Sparkles, Tags, Users } from "lucide-react";
 import { logout } from "@/lib/actions/auth";
 
 const NAV = [
@@ -10,6 +10,7 @@ const NAV = [
   { href: "/providers", label: "供应商与模型", icon: Server },
   { href: "/users", label: "用户", icon: Users },
   { href: "/keys", label: "API Keys", icon: KeyRound },
+  { href: "/billing", label: "计费", icon: Coins },
   { href: "/tags", label: "标签", icon: Tags },
   { href: "/logs", label: "请求日志", icon: Activity },
   { href: "/docs", label: "接入文档", icon: BookOpen },

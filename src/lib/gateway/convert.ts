@@ -62,6 +62,9 @@ async function* tapUsage(events: AsyncIterable<IrStreamEvent>, usage: IrUsage): 
     if ((ev.type === "message_start" || ev.type === "message_delta") && ev.usage) {
       if (ev.usage.inputTokens !== undefined) usage.inputTokens = ev.usage.inputTokens;
       if (ev.usage.outputTokens !== undefined) usage.outputTokens = ev.usage.outputTokens;
+      // 缓存字段通常只在 message_start 出现，有值就锁定，避免被后续事件覆盖成 0
+      if (ev.usage.cacheReadTokens !== undefined && usage.cacheReadTokens === undefined) usage.cacheReadTokens = ev.usage.cacheReadTokens;
+      if (ev.usage.cacheWriteTokens !== undefined && usage.cacheWriteTokens === undefined) usage.cacheWriteTokens = ev.usage.cacheWriteTokens;
     }
     yield ev;
   }

@@ -1,17 +1,37 @@
 import "server-only";
 import { and, eq, inArray, or } from "drizzle-orm";
 import { db } from "../db";
-import { apiKeys, entityTags, models, providers, tags, users } from "../db/schema";
+import {
+  apiKeys,
+  billingPeriods,
+  currencies,
+  entityTags,
+  models,
+  modelPrices,
+  providers,
+  tags,
+  users,
+  type BillingMode,
+  type CurrencyCode,
+} from "../db/schema";
+import type { PriceTier } from "../billing/pricing";
 import type { RouteCandidate } from "./routing";
 
 export interface CallerContext {
   apiKeyId: string;
   userId: string;
   tagIds: string[];
+  /** 积分余额（字符串，numeric 精度），由调用方用 money.ts 解析 */
+  creditBalance: string;
 }
 
 export interface CandidateWithSecret extends RouteCandidate {
   defaultMaxTokens: number | null;
+  billingMode: BillingMode;
+  currency: CurrencyCode | null;
+  priorityMultipliers: Record<string, number>;
+  /** 该模型启用的价格档，按 period 分组由计价模块挑选 */
+  prices: PriceTier[];
   provider: RouteCandidate["provider"] & {
     baseUrl: string;
     apiKeyEncrypted: string;
@@ -29,34 +49,43 @@ export async function loadRoutingContext(keyHash: string, modelName: string, req
   const keyIdSub = db.select({ id: apiKeys.id }).from(apiKeys).where(eq(apiKeys.keyHash, keyHash));
   const userIdSub = db.select({ id: apiKeys.userId }).from(apiKeys).where(eq(apiKeys.keyHash, keyHash));
 
-  const [keyRows, callerTagRows, candidateRows, candidateTagRows, requiredTagRows] = await Promise.all([
-    db
-      .select({
-        id: apiKeys.id,
-        userId: apiKeys.userId,
-        enabled: apiKeys.enabled,
-        expiresAt: apiKeys.expiresAt,
-        userEnabled: users.enabled,
-      })
-      .from(apiKeys)
-      .innerJoin(users, eq(users.id, apiKeys.userId))
-      .where(eq(apiKeys.keyHash, keyHash))
-      .limit(1),
-    db
-      .selectDistinct({ tagId: entityTags.tagId })
-      .from(entityTags)
-      .where(
-        or(
-          and(eq(entityTags.entityType, "api_key"), inArray(entityTags.entityId, keyIdSub)),
-          and(eq(entityTags.entityType, "user"), inArray(entityTags.entityId, userIdSub)),
+  const [keyRows, callerTagRows, candidateRows, candidateTagRows, requiredTagRows, priceRows, periodRows, currencyRows] =
+    await Promise.all([
+      db
+        .select({
+          id: apiKeys.id,
+          userId: apiKeys.userId,
+          enabled: apiKeys.enabled,
+          expiresAt: apiKeys.expiresAt,
+          userEnabled: users.enabled,
+          creditBalance: apiKeys.creditBalance,
+        })
+        .from(apiKeys)
+        .innerJoin(users, eq(users.id, apiKeys.userId))
+        .where(eq(apiKeys.keyHash, keyHash))
+        .limit(1),
+      db
+        .selectDistinct({ tagId: entityTags.tagId })
+        .from(entityTags)
+        .where(
+          or(
+            and(eq(entityTags.entityType, "api_key"), inArray(entityTags.entityId, keyIdSub)),
+            and(eq(entityTags.entityType, "user"), inArray(entityTags.entityId, userIdSub)),
+          ),
         ),
-      ),
-    loadCandidates(modelName),
-    loadCandidateTags(modelName),
-    requiredTagNames.length
-      ? db.select({ id: tags.id, name: tags.name }).from(tags).where(inArray(tags.name, requiredTagNames))
-      : Promise.resolve([]),
-  ]);
+      loadCandidates(modelName),
+      loadCandidateTags(modelName),
+      requiredTagNames.length
+        ? db.select({ id: tags.id, name: tags.name }).from(tags).where(inArray(tags.name, requiredTagNames))
+        : Promise.resolve([]),
+      loadPrices(modelName),
+      // 时段与汇率很小且几乎不变，随路由上下文一起取，避免结算时再查一次（结算在 after() 中，读不到请求级缓存）
+      db
+        .select({ name: billingPeriods.name, startMinute: billingPeriods.startMinute, endMinute: billingPeriods.endMinute, timezone: billingPeriods.timezone })
+        .from(billingPeriods)
+        .where(eq(billingPeriods.enabled, true)),
+      db.select().from(currencies),
+    ]);
 
   const key = keyRows[0];
   let callerResult: CallerResult;
@@ -67,7 +96,12 @@ export async function loadRoutingContext(keyHash: string, modelName: string, req
   else
     callerResult = {
       ok: true,
-      caller: { apiKeyId: key.id, userId: key.userId, tagIds: callerTagRows.map((r) => r.tagId) },
+      caller: {
+        apiKeyId: key.id,
+        userId: key.userId,
+        tagIds: callerTagRows.map((r) => r.tagId),
+        creditBalance: key.creditBalance,
+      },
     };
 
   const modelTags = new Map<string, string[]>();
@@ -77,6 +111,13 @@ export async function loadRoutingContext(keyHash: string, modelName: string, req
     const list = map.get(r.entityId);
     if (list) list.push(r.tagId);
     else map.set(r.entityId, [r.tagId]);
+  }
+
+  const pricesByModel = new Map<string, PriceTier[]>();
+  for (const p of priceRows) {
+    const list = pricesByModel.get(p.modelId);
+    if (list) list.push(p);
+    else pricesByModel.set(p.modelId, [p]);
   }
 
   const candidates: CandidateWithSecret[] = candidateRows.map((r) => ({
@@ -89,6 +130,10 @@ export async function loadRoutingContext(keyHash: string, modelName: string, req
     weight: r.weight,
     modelEnabled: r.modelEnabled,
     modelTagIds: modelTags.get(r.modelId) ?? [],
+    billingMode: r.billingMode,
+    currency: r.currency,
+    priorityMultipliers: r.priorityMultipliers,
+    prices: pricesByModel.get(r.modelId) ?? [],
     provider: {
       id: r.providerId,
       name: r.providerName,
@@ -106,7 +151,7 @@ export async function loadRoutingContext(keyHash: string, modelName: string, req
   const requiredTagIds = requiredTagRows.map((t) => t.id);
   if (requiredTagNames.some((n) => !known.has(n))) requiredTagIds.push("__unknown__");
 
-  return { callerResult, candidates, requiredTagIds };
+  return { callerResult, candidates, requiredTagIds, periods: periodRows, currencies: currencyRows };
 }
 
 function loadCandidates(modelName: string) {
@@ -120,6 +165,9 @@ function loadCandidates(modelName: string) {
       priority: models.priority,
       weight: models.weight,
       modelEnabled: models.enabled,
+      billingMode: models.billingMode,
+      currency: models.currency,
+      priorityMultipliers: models.priorityMultipliers,
       providerId: providers.id,
       providerName: providers.name,
       providerEnabled: providers.enabled,
@@ -131,6 +179,25 @@ function loadCandidates(modelName: string) {
     .from(models)
     .innerJoin(providers, eq(providers.id, models.providerId))
     .where(eq(models.name, modelName));
+}
+
+/** 候选模型启用的价格档（仅该模型名下，避免全表扫描） */
+function loadPrices(modelName: string) {
+  const modelIds = db.select({ id: models.id }).from(models).where(eq(models.name, modelName));
+  return db
+    .select({
+      id: modelPrices.id,
+      modelId: modelPrices.modelId,
+      contextMin: modelPrices.contextMin,
+      contextMax: modelPrices.contextMax,
+      period: modelPrices.period,
+      inputPrice: modelPrices.inputPrice,
+      outputPrice: modelPrices.outputPrice,
+      cacheWritePrice: modelPrices.cacheWritePrice,
+      cacheReadPrice: modelPrices.cacheReadPrice,
+    })
+    .from(modelPrices)
+    .where(and(eq(modelPrices.enabled, true), inArray(modelPrices.modelId, modelIds)));
 }
 
 function loadCandidateTags(modelName: string) {

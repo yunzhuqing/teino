@@ -2,7 +2,7 @@ import "server-only";
 import { count, desc, eq, gte, sql, sum } from "drizzle-orm";
 import { requireAdmin } from "./auth";
 import { db } from "./db";
-import { apiKeys, models, providers, requestLogs, users } from "./db/schema";
+import { apiKeys, currencies, models, providers, requestLogs, users } from "./db/schema";
 
 export async function getRecentLogs(limit = 100) {
   await requireAdmin();
@@ -19,6 +19,14 @@ export async function getRecentLogs(limit = 100) {
       latencyMs: requestLogs.latencyMs,
       inputTokens: requestLogs.inputTokens,
       outputTokens: requestLogs.outputTokens,
+      cacheReadTokens: requestLogs.cacheReadTokens,
+      cacheWriteTokens: requestLogs.cacheWriteTokens,
+      costOriginal: requestLogs.costOriginal,
+      currency: requestLogs.currency,
+      creditsCharged: requestLogs.creditsCharged,
+      period: requestLogs.period,
+      priorityTier: requestLogs.priorityTier,
+      multiplier: requestLogs.multiplier,
       error: requestLogs.error,
       providerName: providers.name,
       userName: users.name,
@@ -35,7 +43,7 @@ export async function getRecentLogs(limit = 100) {
 export async function getDashboardStats() {
   await requireAdmin();
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
-  const [[counts], [traffic], byProvider] = await Promise.all([
+  const [[counts], [traffic], byProvider, currencyRows] = await Promise.all([
     db
       .select({
         providers: sql<number>`(select count(*)::int from ${providers})`,
@@ -51,6 +59,10 @@ export async function getDashboardStats() {
         avgLatency: sql<number>`coalesce(avg(${requestLogs.latencyMs}), 0)::int`,
         inputTokens: sum(requestLogs.inputTokens).mapWith(Number),
         outputTokens: sum(requestLogs.outputTokens).mapWith(Number),
+        cacheReadTokens: sum(requestLogs.cacheReadTokens).mapWith(Number),
+        cacheWriteTokens: sum(requestLogs.cacheWriteTokens).mapWith(Number),
+        // 费用以原币记录，先按币种分组取回，折算放到应用层（汇率存在 currencies 表里）
+        creditsCharged: sum(requestLogs.creditsCharged).mapWith(Number),
       })
       .from(requestLogs)
       .where(gte(requestLogs.createdAt, since)),
@@ -62,6 +74,19 @@ export async function getDashboardStats() {
       .groupBy(providers.name)
       .orderBy(desc(count()))
       .limit(6),
+    db.select().from(currencies),
   ]);
-  return { counts, traffic, byProvider };
+
+  // 各币种分别汇总，再由调用方用 toBase 折算成主货币
+  const costsByCurrency = await db
+    .select({ currency: requestLogs.currency, total: sum(requestLogs.costOriginal).mapWith(String) })
+    .from(requestLogs)
+    .where(gte(requestLogs.createdAt, since))
+    .groupBy(requestLogs.currency);
+
+  const totalBalance = await db
+    .select({ total: sum(apiKeys.creditBalance).mapWith(String) })
+    .from(apiKeys);
+
+  return { counts, traffic, byProvider, currencies: currencyRows, costsByCurrency, totalBalance: totalBalance[0]?.total ?? "0" };
 }

@@ -3,7 +3,18 @@ import { cache } from "react";
 import { asc, count, desc, eq, sql } from "drizzle-orm";
 import { requireAdmin } from "./auth";
 import { db } from "./db";
-import { apiKeys, entityTags, models, providers, tags, users, type TagEntityType } from "./db/schema";
+import {
+  apiKeys,
+  billingPeriods,
+  currencies,
+  entityTags,
+  models,
+  modelPrices,
+  providers,
+  tags,
+  users,
+  type TagEntityType,
+} from "./db/schema";
 
 /** 标签列表（同一请求内去重） */
 export const getTags = cache(async () => {
@@ -24,7 +35,7 @@ export const getTagMap = cache(async (entityType: TagEntityType) => {
 
 export async function getProvidersWithModels() {
   await requireAdmin();
-  const [providerRows, modelRows, providerTags, modelTags] = await Promise.all([
+  const [providerRows, modelRows, priceRows, providerTags, modelTags] = await Promise.all([
     db
       .select({
         id: providers.id,
@@ -47,16 +58,26 @@ export async function getProvidersWithModels() {
         defaultMaxTokens: models.defaultMaxTokens,
         priority: models.priority,
         weight: models.weight,
+        billingMode: models.billingMode,
+        currency: models.currency,
+        priorityMultipliers: models.priorityMultipliers,
         enabled: models.enabled,
       })
       .from(models)
       .orderBy(desc(models.priority), desc(models.weight), asc(models.name)),
+    db.select().from(modelPrices).orderBy(asc(modelPrices.period), asc(modelPrices.contextMin)),
     getTagMap("provider"),
     getTagMap("model"),
   ]);
-  const byProvider = new Map<string, ((typeof modelRows)[number] & { tagIds: string[] })[]>();
+  const pricesByModel = new Map<string, (typeof priceRows)[number][]>();
+  for (const p of priceRows) {
+    const list = pricesByModel.get(p.modelId);
+    if (list) list.push(p);
+    else pricesByModel.set(p.modelId, [p]);
+  }
+  const byProvider = new Map<string, ((typeof modelRows)[number] & { tagIds: string[]; prices: typeof priceRows })[]>();
   for (const m of modelRows) {
-    const item = { ...m, tagIds: modelTags[m.id] ?? [] };
+    const item = { ...m, tagIds: modelTags[m.id] ?? [], prices: pricesByModel.get(m.id) ?? [] };
     const list = byProvider.get(m.providerId);
     if (list) list.push(item);
     else byProvider.set(m.providerId, [item]);
@@ -98,6 +119,7 @@ export async function getApiKeys() {
         createdAt: apiKeys.createdAt,
         userId: apiKeys.userId,
         userName: users.name,
+        creditBalance: apiKeys.creditBalance,
       })
       .from(apiKeys)
       .innerJoin(users, eq(users.id, apiKeys.userId))
@@ -106,6 +128,18 @@ export async function getApiKeys() {
   ]);
   return rows.map((k) => ({ ...k, tagIds: tagMap[k.id] ?? [] }));
 }
+
+/** 币种与汇率表 */
+export const getCurrencies = cache(async () => {
+  await requireAdmin();
+  return db.select().from(currencies).orderBy(asc(currencies.code));
+});
+
+/** 计费时段列表 */
+export const getBillingPeriods = cache(async () => {
+  await requireAdmin();
+  return db.select().from(billingPeriods).orderBy(asc(billingPeriods.startMinute));
+});
 
 export async function getUserOptions() {
   await requireAdmin();

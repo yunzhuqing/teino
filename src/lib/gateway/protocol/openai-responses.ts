@@ -67,16 +67,28 @@ function parseToolChoice(v: unknown): IrToolChoice | undefined {
   return undefined;
 }
 
+/** 与 Chat Completions 同理：Responses 的 input_tokens 包含命中缓存的部分，需减出单独计数 */
 function parseUsage(u: unknown): IrUsage {
-  return isObj(u) ? { inputTokens: num(u.input_tokens), outputTokens: num(u.output_tokens) } : {};
+  if (!isObj(u)) return {};
+  const input = num(u.input_tokens);
+  const details = u.input_tokens_details;
+  const cached = isObj(details) ? num(details.cached_tokens) : undefined;
+  return {
+    inputTokens: input === undefined ? undefined : Math.max(0, input - (cached ?? 0)),
+    outputTokens: num(u.output_tokens),
+    cacheReadTokens: cached,
+    // 不写 cacheWriteTokens：Responses 没有缓存写入的计费概念
+  };
 }
 
 function buildUsage(u: IrUsage) {
-  const i = u.inputTokens ?? 0;
+  const fresh = u.inputTokens ?? 0;
+  const cached = u.cacheReadTokens ?? 0;
+  const i = fresh + cached + (u.cacheWriteTokens ?? 0);
   const o = u.outputTokens ?? 0;
   return {
     input_tokens: i,
-    input_tokens_details: { cached_tokens: 0 },
+    input_tokens_details: { cached_tokens: cached },
     output_tokens: o,
     output_tokens_details: { reasoning_tokens: 0 },
     total_tokens: i + o,

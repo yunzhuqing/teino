@@ -1,7 +1,8 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { Activity, ArrowUpRight, Boxes, Gauge, KeyRound, Server, Users, Zap } from "lucide-react";
-import { formatNumber, PageHeader } from "@/components/ui";
+import { Activity, ArrowUpRight, Boxes, Coins, Gauge, KeyRound, Server, Users, Zap } from "lucide-react";
+import { formatCreditAmount, formatMoney, formatNumber, PageHeader } from "@/components/ui";
+import { formatAmount, parseAmount, toBase, type CurrencyRow } from "@/lib/billing/pricing";
 import { getDashboardStats } from "@/lib/stats";
 
 export default function DashboardPage() {
@@ -17,9 +18,22 @@ export default function DashboardPage() {
 }
 
 async function Stats() {
-  const { counts, traffic, byProvider } = await getDashboardStats();
+  const { counts, traffic, byProvider, currencies, costsByCurrency, totalBalance } = await getDashboardStats();
   const successRate = traffic.total ? Math.round((traffic.success / traffic.total) * 1000) / 10 : null;
   const maxN = byProvider[0]?.n ?? 0;
+
+  // 费用按原币记录，这里统一折算到主货币再汇总展示
+  const currencyRows: CurrencyRow[] = currencies.map((c) => ({
+    code: c.code,
+    rateToBase: c.rateToBase,
+    isBase: c.isBase,
+    creditRate: c.creditRate,
+  }));
+  const base = currencyRows.find((c) => c.isBase) ?? null;
+  const costBase = costsByCurrency.reduce(
+    (sum, row) => sum + toBase(parseAmount(row.total ?? "0"), row.currency, currencyRows),
+    0n,
+  );
 
   const resources = [
     { label: "供应商", value: counts.providers, icon: Server, href: "/providers" },
@@ -32,6 +46,31 @@ async function Stats() {
     { label: "成功率", value: successRate == null ? "—" : `${successRate}%`, icon: Zap, tone: "text-emerald-300" },
     { label: "平均延迟", value: traffic.total ? `${formatNumber(traffic.avgLatency)} ms` : "—", icon: Gauge, tone: "text-sky-300" },
     { label: "Tokens（入 / 出）", value: `${formatNumber(traffic.inputTokens ?? 0)} / ${formatNumber(traffic.outputTokens ?? 0)}`, icon: ArrowUpRight, tone: "text-pink-300" },
+    {
+      label: `24h 费用${base ? `（${base.code}）` : ""}`,
+      value: formatMoney(formatAmount(costBase), base?.code),
+      icon: Coins,
+      tone: "text-amber-300",
+    },
+    {
+      label: "24h 扣减积分",
+      value: formatCreditAmount(traffic.creditsCharged ?? 0),
+      icon: Coins,
+      tone: "text-violet-300",
+    },
+    {
+      label: "Key 余额合计",
+      value: formatCreditAmount(totalBalance),
+      icon: KeyRound,
+      tone: "text-emerald-300",
+      href: "/keys",
+    },
+    {
+      label: "24h 缓存（命中 / 创建）",
+      value: `${formatNumber(traffic.cacheReadTokens ?? 0)} / ${formatNumber(traffic.cacheWriteTokens ?? 0)}`,
+      icon: Boxes,
+      tone: "text-sky-300",
+    },
   ];
 
   return (

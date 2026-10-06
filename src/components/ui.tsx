@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { DEFAULT_TIMEZONE } from "@/lib/timezone";
 
 export function PageHeader({ title, description, action }: { title: string; description?: string; action?: ReactNode }) {
   return (
@@ -48,11 +49,37 @@ export function formatDate(d: Date | null | undefined): string {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
-    timeZone: "Asia/Shanghai",
+    timeZone: DEFAULT_TIMEZONE,
   }).format(d);
 }
 
 export function formatNumber(n: number | null | undefined): string {
   if (n == null) return "—";
   return new Intl.NumberFormat("en-US", { notation: n >= 10000 ? "compact" : "standard", maximumFractionDigits: 1 }).format(n);
+}
+
+const CURRENCY_SYMBOLS: Record<string, string> = { USD: "$", CNY: "¥" };
+
+/**
+ * 金额展示。入参是数据库读出的 numeric 字符串（或数字），按币种保留合适的小数位。
+ * 不能用 formatNumber：它用 compact 记法，且对 $0.0042 这类小额会直接变成 0。
+ */
+export function formatMoney(amount: string | number | null | undefined, currency?: string | null): string {
+  if (amount === null || amount === undefined || amount === "") return "—";
+  const n = typeof amount === "number" ? amount : Number(amount);
+  if (!Number.isFinite(n)) return "—";
+  const symbol = currency ? (CURRENCY_SYMBOLS[currency] ?? "") : "";
+  const suffix = currency && !symbol ? ` ${currency}` : "";
+  // 小额费用要保留足够位数才看得见，大额则不需要
+  const abs = Math.abs(n);
+  const digits = abs === 0 ? 2 : abs < 0.01 ? 6 : abs < 1 ? 4 : 2;
+  return `${symbol}${n.toFixed(digits)}${suffix}`;
+}
+
+/** 积分展示：保留 2 位小数即可，避免表格里出现一长串零 */
+export function formatCreditAmount(amount: string | number | null | undefined): string {
+  if (amount === null || amount === undefined || amount === "") return "—";
+  const n = typeof amount === "number" ? amount : Number(amount);
+  if (!Number.isFinite(n)) return "—";
+  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(n);
 }

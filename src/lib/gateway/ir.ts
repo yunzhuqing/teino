@@ -43,8 +43,13 @@ export interface IrRequest {
 export type IrStopReason = "end_turn" | "max_tokens" | "stop_sequence" | "tool_use";
 
 export interface IrUsage {
+  /** 未命中缓存的新增输入 token。命中/写入缓存的部分单独计数，不包含在这里 */
   inputTokens?: number;
   outputTokens?: number;
+  /** 命中缓存的输入 token（各协议口径不一，归一化时统一拆出） */
+  cacheReadTokens?: number;
+  /** 写入缓存的输入 token */
+  cacheWriteTokens?: number;
 }
 
 export interface IrResponse {

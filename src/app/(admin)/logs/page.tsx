@@ -1,5 +1,5 @@
 import { Activity } from "lucide-react";
-import { EmptyState, formatDate, formatNumber, PageHeader, Pill } from "@/components/ui";
+import { EmptyState, formatCreditAmount, formatDate, formatMoney, formatNumber, PageHeader, Pill } from "@/components/ui";
 import { API_TYPE_LABELS } from "@/lib/gateway/upstream";
 import { getRecentLogs } from "@/lib/stats";
 
@@ -13,7 +13,7 @@ export default async function LogsPage() {
   const logs = await getRecentLogs(200);
   return (
     <>
-      <PageHeader title="请求日志" description="最近 200 条网关请求（含故障转移尝试次数与 token 用量）" />
+      <PageHeader title="请求日志" description="最近 200 条网关请求（含故障转移尝试次数、token 用量与计费结果）" />
       <section className="glass overflow-hidden">
         {logs.length === 0 ? (
           <EmptyState icon={<Activity className="size-5" />} title="暂无请求记录" />
@@ -31,6 +31,9 @@ export default async function LogsPage() {
                   <th className="text-right">尝试</th>
                   <th className="text-right">延迟</th>
                   <th className="text-right">Tokens 入/出</th>
+                  <th className="text-right">缓存 命中/创建</th>
+                  <th className="text-right">费用</th>
+                  <th className="text-right">积分</th>
                 </tr>
               </thead>
               <tbody>
@@ -57,6 +60,24 @@ export default async function LogsPage() {
                     <td className="text-right tabular-nums text-zinc-300">{formatNumber(l.latencyMs)} ms</td>
                     <td className="text-right text-xs tabular-nums text-zinc-400">
                       {formatNumber(l.inputTokens)} / {formatNumber(l.outputTokens)}
+                    </td>
+                    <td className="text-right text-xs tabular-nums text-zinc-400">
+                      {l.cacheReadTokens || l.cacheWriteTokens ? (
+                        <>
+                          {formatNumber(l.cacheReadTokens)} / {formatNumber(l.cacheWriteTokens)}
+                        </>
+                      ) : (
+                        <span className="text-zinc-600">—</span>
+                      )}
+                    </td>
+                    <td className="text-right text-xs tabular-nums text-zinc-300">
+                      {Number(l.costOriginal) > 0 ? formatMoney(l.costOriginal, l.currency) : <span className="text-zinc-600">—</span>}
+                      {/* 非 1 倍或命中非兜底时段时标出来，便于核对计价规则 */}
+                      {l.period && l.period !== "all" ? <span className="ml-1 text-[10px] text-sky-300">{l.period}</span> : null}
+                      {l.multiplier && Number(l.multiplier) !== 1 ? <span className="ml-1 text-[10px] text-amber-300">×{l.multiplier}</span> : null}
+                    </td>
+                    <td className="text-right text-xs tabular-nums text-violet-200">
+                      {Number(l.creditsCharged) !== 0 ? formatCreditAmount(l.creditsCharged) : <span className="text-zinc-600">—</span>}
                     </td>
                   </tr>
                 ))}

@@ -1,7 +1,22 @@
+"use client";
+
+import { useState } from "react";
 import type { TagLite } from "@/components/tag-badge";
 import { TagPicker } from "@/components/tag-picker";
-import { API_TYPES, type ApiType } from "@/lib/db/schema";
+import { API_TYPES, BILLING_MODES, CURRENCY_CODES, type ApiType, type BillingMode, type CurrencyCode } from "@/lib/db/schema";
 import { API_TYPE_LABELS } from "@/lib/gateway/upstream";
+import { PriceTiersEditor, type PriceTierValue } from "./price-tiers-editor";
+import { PriorityMultipliersEditor } from "./priority-multipliers-editor";
+
+const BILLING_MODE_LABELS: Record<BillingMode, string> = {
+  token: "按 token 计费（真实货币）",
+  credit: "按积分计费",
+};
+
+const CURRENCY_LABELS: Record<CurrencyCode, string> = {
+  USD: "USD（美元）",
+  CNY: "CNY（人民币）",
+};
 
 const API_TYPE_HINTS: Record<ApiType, string> = {
   openai_chat: "POST {base}/chat/completions",
@@ -82,8 +97,21 @@ interface ModelValue {
   defaultMaxTokens: number | null;
   priority: number;
   weight: number;
+  billingMode: BillingMode;
+  currency: CurrencyCode | null;
+  priorityMultipliers: Record<string, number>;
   enabled: boolean;
   tagIds: string[];
+  /** 数据库行：金额是 numeric 字符串，区间是整数 */
+  prices: Array<{
+    contextMin: number;
+    contextMax: number | null;
+    period: string;
+    inputPrice: string;
+    outputPrice: string;
+    cacheWritePrice: string;
+    cacheReadPrice: string;
+  }>;
 }
 
 export function ModelFields({
@@ -97,6 +125,9 @@ export function ModelFields({
   model?: ModelValue;
   tags: TagLite[];
 }) {
+  // 计费模式是纯客户端联动：credit 模式下币种无意义，选择框随之禁用
+  const [billingMode, setBillingMode] = useState<BillingMode>(model?.billingMode ?? "token");
+
   return (
     <>
       <input type="hidden" name="providerId" value={providerId} />
@@ -154,6 +185,60 @@ export function ModelFields({
         </div>
       </div>
       <p className="-mt-2 text-xs text-zinc-500">权重为 0 表示仅在同层其他上游都失败时兜底使用。</p>
+      <div className="rounded-xl border border-white/10 bg-white/2 p-4">
+        <h3 className="mb-3 text-sm font-medium text-zinc-200">计费</h3>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="label" htmlFor="m-billing">
+              计费模式
+            </label>
+            <select
+              id="m-billing"
+              name="billingMode"
+              value={billingMode}
+              onChange={(e) => setBillingMode(e.target.value as BillingMode)}
+              className="input"
+            >
+              {BILLING_MODES.map((m) => (
+                <option key={m} value={m}>
+                  {BILLING_MODE_LABELS[m]}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="label" htmlFor="m-currency">
+              结算币种 {billingMode === "credit" ? <span className="text-zinc-500">（积分模式不需要）</span> : null}
+            </label>
+            <select id="m-currency" name="currency" defaultValue={model?.currency ?? ""} className="input" disabled={billingMode === "credit"}>
+              <option value="">请选择</option>
+              {CURRENCY_CODES.map((c) => (
+                <option key={c} value={c}>
+                  {CURRENCY_LABELS[c]}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <div className="mt-4 space-y-4">
+          <PriceTiersEditor
+            defaultValue={model?.prices?.map((p) => ({
+              contextMin: String(p.contextMin),
+              contextMax: p.contextMax === null ? "" : String(p.contextMax),
+              period: p.period,
+              inputPrice: p.inputPrice,
+              outputPrice: p.outputPrice,
+              cacheWritePrice: p.cacheWritePrice,
+              cacheReadPrice: p.cacheReadPrice,
+            }))}
+          />
+          <PriorityMultipliersEditor defaultValue={model?.priorityMultipliers} />
+        </div>
+        <p className="mt-3 text-xs text-zinc-500">
+          单价的单位是「每 100 万 token」，按 {billingMode === "credit" ? "积分" : "所选币种"} 填写；四个维度分别乘以各自 token 数后求和，再乘优先级倍率。
+          请求实际用量由上游回报，预检时按上下文长度估算。
+        </p>
+      </div>
       <div>
         <span className="label">标签</span>
         <TagPicker tags={tags} defaultValue={model?.tagIds} />

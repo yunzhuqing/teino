@@ -115,6 +115,29 @@ const res = await client.responses.create({
             </li>
           </ul>
         </section>
+
+        <section className="glass p-5">
+          <h2 className="mb-3 text-sm font-semibold">计费与配额</h2>
+          <ul className="list-disc space-y-1.5 pl-5 text-sm text-zinc-300">
+            <li>
+              计费由 <code className="font-mono text-violet-200">BILLING_ENABLED</code> 控制，默认关闭；关闭时只记录 token 用量。
+            </li>
+            <li>
+              每个模型在「供应商与模型」里选择<b>按 token 计费</b>（真实货币，需选币种）或<b>按积分计费</b>，并配置价格档：
+              上下文区间 × 时段，四个维度（输入 / 输出 / 缓存创建 / 缓存命中）各自的单价，单位是「每 100 万 token」。
+            </li>
+            <li>
+              实际费用 = 各维度 token 数 × 对应单价之和 × 请求优先级倍率。倍率取自请求体的 <code className="font-mono text-violet-200">service_tier</code> /{' '}
+              <code className="font-mono text-violet-200">priority</code> 字段或 <code className="font-mono text-violet-200">x-gateway-priority</code> 头，未声明的档位按 1 倍。
+            </li>
+            <li>
+              钱包挂在 API Key 上。转发前按估算用量预检，余额不足直接返回 <b>402</b>（不转发到上游）；响应返回后按上游实际回报的用量扣减，并写入积分流水。
+            </li>
+            <li>
+              按 token 计费的模型会先按「计费」页的汇率折成主货币，再按主货币的积分汇率扣除。费用以原币记录在请求日志中，统计展示时统一折算成主货币。
+            </li>
+          </ul>
+        </section>
       </div>
     </>
   );

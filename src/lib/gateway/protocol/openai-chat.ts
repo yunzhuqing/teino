@@ -65,14 +65,35 @@ function finishOf(r: IrStopReason): string {
   return r === "max_tokens" ? "length" : r === "tool_use" ? "tool_calls" : "stop";
 }
 
+/**
+ * OpenAI 的 prompt_tokens **包含**命中缓存的 token（与 Anthropic 口径相反），
+ * 因此归一化时必须把命中部分减出去，否则会与缓存单价重复计费。
+ */
 function parseUsage(u: unknown): IrUsage {
-  return isObj(u) ? { inputTokens: num(u.prompt_tokens), outputTokens: num(u.completion_tokens) } : {};
+  if (!isObj(u)) return {};
+  const prompt = num(u.prompt_tokens);
+  const details = u.prompt_tokens_details;
+  const cached = isObj(details) ? num(details.cached_tokens) : undefined;
+  return {
+    inputTokens: prompt === undefined ? undefined : Math.max(0, prompt - (cached ?? 0)),
+    outputTokens: num(u.completion_tokens),
+    cacheReadTokens: cached,
+    // 不写 cacheWriteTokens：Chat Completions 没有缓存写入的计费概念，留空比写 0 更不容易被误读
+  };
 }
 
 function buildUsage(u: IrUsage) {
-  const p = u.inputTokens ?? 0;
+  const fresh = u.inputTokens ?? 0;
+  const cached = u.cacheReadTokens ?? 0;
+  // prompt_tokens 需要还原成包含命中缓存的总额，才符合 Chat Completions 的口径
+  const p = fresh + cached + (u.cacheWriteTokens ?? 0);
   const c = u.outputTokens ?? 0;
-  return { prompt_tokens: p, completion_tokens: c, total_tokens: p + c };
+  return {
+    prompt_tokens: p,
+    completion_tokens: c,
+    total_tokens: p + c,
+    ...(cached ? { prompt_tokens_details: { cached_tokens: cached } } : {}),
+  };
 }
 
 function buildUserParts(parts: IrPart[]): string | Obj[] {
@@ -264,7 +285,14 @@ export const openaiChatCodec: Codec = {
         started = true;
         yield { type: "message_start" as const, id: str(d.id) };
       }
-      if (isObj(d.usage)) Object.assign(usage, parseUsage(d.usage));
+      // usage 只在最后一个 chunk 出现，逐字段合并以免 undefined 覆盖已有值
+      if (isObj(d.usage)) {
+        const u = parseUsage(d.usage);
+        if (u.inputTokens !== undefined) usage.inputTokens = u.inputTokens;
+        if (u.outputTokens !== undefined) usage.outputTokens = u.outputTokens;
+        if (u.cacheReadTokens !== undefined) usage.cacheReadTokens = u.cacheReadTokens;
+        if (u.cacheWriteTokens !== undefined) usage.cacheWriteTokens = u.cacheWriteTokens;
+      }
 
       const choice = asArray(d.choices)[0];
       if (!isObj(choice)) continue;
@@ -335,6 +363,8 @@ export const openaiChatCodec: Codec = {
           if (ev.stopReason) stopReason = ev.stopReason;
           if (ev.usage?.inputTokens !== undefined) usage.inputTokens = ev.usage.inputTokens;
           if (ev.usage?.outputTokens !== undefined) usage.outputTokens = ev.usage.outputTokens;
+          if (ev.usage?.cacheReadTokens !== undefined) usage.cacheReadTokens = ev.usage.cacheReadTokens;
+          if (ev.usage?.cacheWriteTokens !== undefined) usage.cacheWriteTokens = ev.usage.cacheWriteTokens;
           break;
         case "message_stop":
           yield chunk({}, finishOf(stopReason));

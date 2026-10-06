@@ -41,15 +41,42 @@ export function buildUpstreamHeaders(
 }
 
 export interface Usage {
+  /** 未命中缓存的新增输入 token（各协议已归一化：命中/写入缓存的部分不在这里） */
   inputTokens?: number;
   outputTokens?: number;
+  cacheReadTokens?: number;
+  cacheWriteTokens?: number;
 }
 
 function num(v: unknown): number | undefined {
   return typeof v === "number" && Number.isFinite(v) ? v : undefined;
 }
 
-/** 从任一种协议的响应对象 / SSE 事件中提取 usage，合并到 acc */
+/** Anthropic 的 cache_creation_input_tokens 可能是数字，也可能是按 TTL 分层的对象 */
+function cacheCreation(v: unknown): number | undefined {
+  if (typeof v === "number") return Number.isFinite(v) ? v : undefined;
+  if (!v || typeof v !== "object") return undefined;
+  let total = 0;
+  let found = false;
+  for (const n of Object.values(v as Record<string, unknown>)) {
+    if (typeof n === "number" && Number.isFinite(n)) {
+      total += n;
+      found = true;
+    }
+  }
+  return found ? total : undefined;
+}
+
+/**
+ * 从任一种协议的响应对象 / SSE 事件中提取 usage，合并到 acc。
+ *
+ * 输入 token 的口径差异在这里抹平：
+ * - Anthropic 的 input_tokens 不含缓存，cache_read / cache_creation 各自独立
+ * - OpenAI 的 prompt_tokens / input_tokens **包含**命中缓存，需减去 cached_tokens
+ *
+ * 缓存字段采用「一旦拿到就锁定」的规则（与 inputTokens 的「>0 才覆盖」不同）：
+ * 上游常在同一响应里重复上报 usage，某一帧把 cached_tokens 报成 0 时若直接覆盖，会丢掉真实值。
+ */
 export function mergeUsage(acc: Usage, obj: unknown): void {
   if (!obj || typeof obj !== "object") return;
   const o = obj as Record<string, unknown>;
@@ -61,11 +88,21 @@ export function mergeUsage(acc: Usage, obj: unknown): void {
   for (const u of candidates) {
     if (!u || typeof u !== "object") continue;
     const r = u as Record<string, unknown>;
-    const input = num(r.prompt_tokens) ?? num(r.input_tokens);
-    const output = num(r.completion_tokens) ?? num(r.output_tokens);
+    const details = r.prompt_tokens_details ?? r.input_tokens_details;
+    const cached = num(r.cache_read_input_tokens) ?? (details && typeof details === "object" ? num((details as Record<string, unknown>).cached_tokens) : undefined);
+    const rawInput = num(r.prompt_tokens) ?? num(r.input_tokens);
+    // OpenAI 口径的输入总量包含缓存命中，OpenAI 系协议才会带 details
+    const inputIncludesCache = details !== undefined;
+    const input = rawInput === undefined ? undefined : inputIncludesCache ? Math.max(0, rawInput - (cached ?? 0)) : rawInput;
+
     if (input !== undefined && input > 0) acc.inputTokens = input;
     else if (input !== undefined && acc.inputTokens === undefined) acc.inputTokens = input;
+    const output = num(r.completion_tokens) ?? num(r.output_tokens);
     if (output !== undefined) acc.outputTokens = output;
+
+    if (cached !== undefined && acc.cacheReadTokens === undefined) acc.cacheReadTokens = cached;
+    const write = cacheCreation(r.cache_creation_input_tokens);
+    if (write !== undefined && acc.cacheWriteTokens === undefined) acc.cacheWriteTokens = write;
   }
 }
 
@@ -107,10 +144,10 @@ export function tapSseUsage(body: ReadableStream<Uint8Array>): {
   });
 
   const stream = body.pipeThrough(transform);
+  const reader = stream.getReader();
   // 客户端中断时 flush 不会触发，兜底保证 done 不会永久挂起
   const guarded = new ReadableStream<Uint8Array>({
     async start(controller) {
-      const reader = stream.getReader();
       try {
         for (;;) {
           const { done: end, value } = await reader.read();
@@ -126,7 +163,8 @@ export function tapSseUsage(body: ReadableStream<Uint8Array>): {
     },
     cancel(reason) {
       resolve(usage);
-      return stream.cancel(reason);
+      // 只能取消 reader：stream 已被它锁定，直接调 stream.cancel 会抛 ERR_INVALID_STATE
+      return reader.cancel(reason).catch(() => {});
     },
   });
   return { stream: guarded, done };

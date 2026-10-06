@@ -1,20 +1,48 @@
 import "server-only";
 import { after } from "next/server";
+import { BILLING_ENABLED, estimateCredits, settleRequest, type BillingTarget } from "../billing/settle";
+import { estimateInputTokens, estimateOutputTokens } from "../billing/estimate";
+import { parseCredit } from "../billing/money";
+import { selectPeriod } from "../billing/pricing";
 import { sha256 } from "../crypto";
 import type { ApiType } from "../db/schema";
 import { buildUpstreamRequest, convertErrorBody, convertResponse, convertStream, parseClientRequest } from "./convert";
 import { callUpstream, errorResponse, extractKey, parseJsonObject, pickHeaders } from "./http";
 import type { IrRequest } from "./ir";
 import { writeLog, type LogEntry } from "./logs";
-import { loadRoutingContext } from "./repository";
+import { loadRoutingContext, type CandidateWithSecret } from "./repository";
 import { planRoute, upstreamApiType } from "./routing";
 import { isRetryableStatus, mergeUsage, tapSseUsage, type Usage } from "./upstream";
 
 const MAX_ATTEMPTS = Math.max(1, Number(process.env.GATEWAY_MAX_ATTEMPTS) || 3);
 const DEFAULT_MAX_TOKENS = Math.max(1, Number(process.env.GATEWAY_DEFAULT_MAX_TOKENS) || 4096);
 const TAG_HEADER = "x-gateway-tags";
+/** 请求声明的优先级档位，用于查模型的价格倍率；不同协议字段名不同 */
+const PRIORITY_FIELDS = ["service_tier", "priority", "x-gateway-priority"];
 
 const errMsg = (err: unknown) => (err instanceof Error ? err.message : String(err));
+
+/** 从请求体或请求头里取请求声明的优先级档位 */
+function readPriorityTier(req: Request, body: Record<string, unknown>): string | null {
+  for (const f of PRIORITY_FIELDS) {
+    const v = body[f];
+    if (typeof v === "string" && v.trim()) return v.trim();
+  }
+  const header = req.headers.get("x-gateway-priority");
+  return header?.trim() || null;
+}
+
+/** 从路由候选里取出计费需要的字段 */
+function billingTarget(target: CandidateWithSecret): BillingTarget {
+  return {
+    modelId: target.modelId,
+    modelName: target.modelName,
+    billingMode: target.billingMode,
+    currency: target.currency,
+    priorityMultipliers: target.priorityMultipliers,
+    prices: target.prices,
+  };
+}
 
 export async function handleGatewayRequest(req: Request, apiType: ApiType): Promise<Response> {
   const started = Date.now();
@@ -31,9 +59,10 @@ export async function handleGatewayRequest(req: Request, apiType: ApiType): Prom
     .map((s) => s.trim())
     .filter(Boolean);
 
-  const { callerResult, candidates, requiredTagIds } = await loadRoutingContext(sha256(key), model, requiredTagNames);
+  const { callerResult, candidates, requiredTagIds, periods, currencies } = await loadRoutingContext(sha256(key), model, requiredTagNames);
   if (!callerResult.ok) return errorResponse(apiType, 401, callerResult.reason);
   const { caller } = callerResult;
+  const priorityTier = readPriorityTier(req, body);
 
   let plan = planRoute(candidates, { model, apiType, callerTagIds: caller.tagIds, requiredTagIds });
 
@@ -51,8 +80,27 @@ export async function handleGatewayRequest(req: Request, apiType: ApiType): Prom
     latencyMs: 0,
   };
   const errors: string[] = [];
-  const finish = (status: number, usage: Usage = {}) =>
-    writeLog({ ...log, ...usage, status, latencyMs: Date.now() - started, error: errors.join("\n") || undefined });
+  /** 记录本次实际命中的上游，结算时按它的价格计费（可能是故障转移后的那个） */
+  let chargedTarget: CandidateWithSecret | null = null;
+
+  const finish = async (status: number, usage: Usage = {}) => {
+    const requestLogId = await writeLog({ ...log, ...usage, status, latencyMs: Date.now() - started, error: errors.join("\n") || undefined });
+    // 只有成功转发到某个上游的请求才计费：4xx/5xx 没有被服务，不应扣费
+    if (!chargedTarget || status >= 400) return;
+    await settleRequest({
+      apiKeyId: caller.apiKeyId,
+      userId: caller.userId,
+      requestLogId,
+      target: billingTarget(chargedTarget),
+      inputTokens: usage.inputTokens ?? 0,
+      outputTokens: usage.outputTokens ?? 0,
+      cacheReadTokens: usage.cacheReadTokens ?? 0,
+      cacheWriteTokens: usage.cacheWriteTokens ?? 0,
+      priorityTier,
+      periods,
+      currencies,
+    });
+  };
 
   // 需要协议转换时只解析一次请求；无法转换则剔除需要转换的上游，只剩同协议上游可用
   let ir: IrRequest | null = null;
@@ -72,6 +120,27 @@ export async function handleGatewayRequest(req: Request, apiType: ApiType): Prom
     errors.push(requestError ?? `没有可用于模型 "${model}" 的上游（请检查模型、供应商 API 类型与标签路由）`);
     after(() => finish(status));
     return errorResponse(apiType, status, errors[0]);
+  }
+
+  // 余额预检：按最可能的落点估算成本，不足则直接拒绝，不转发到上游
+  if (BILLING_ENABLED) {
+    const target = plan[0];
+    const period = selectPeriod(periods, new Date());
+    const estimated = estimateCredits({
+      target: billingTarget(target),
+      inputTokens: estimateInputTokens(body),
+      outputTokens: estimateOutputTokens(body, target.defaultMaxTokens ?? DEFAULT_MAX_TOKENS),
+      priorityTier,
+      period,
+      currencies,
+    });
+    const balance = parseCredit(caller.creditBalance);
+    // 估算失败（没有匹配价位/汇率）时不拦截，交给结算阶段记录告警
+    if (estimated !== null && (balance <= 0n || balance - estimated < 0n)) {
+      errors.push(`积分余额不足：当前 ${caller.creditBalance}，本次预计消耗 ${estimated}`);
+      after(() => finish(402));
+      return errorResponse(apiType, 402, "积分余额不足", { "x-gateway-balance": caller.creditBalance });
+    }
   }
 
   let lastFailure: { status: number; text: string; headers: Headers } | null = null;
@@ -124,6 +193,8 @@ export async function handleGatewayRequest(req: Request, apiType: ApiType): Prom
     headers.set("x-gateway-provider", encodeURIComponent(target.provider.name));
     headers.set("x-gateway-attempts", String(log.attempts));
     const isSse = (res.headers.get("content-type") ?? "").includes("text/event-stream");
+    // 已确定由这个上游服务本次请求，结算按它的价格
+    chargedTarget = target;
 
     if (!converting) {
       if (isSse && res.body) {

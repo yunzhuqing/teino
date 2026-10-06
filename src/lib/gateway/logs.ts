@@ -35,19 +35,26 @@ export interface LogEntry {
   latencyMs: number;
   inputTokens?: number;
   outputTokens?: number;
+  cacheReadTokens?: number;
+  cacheWriteTokens?: number;
   error?: string;
 }
 
-/** 写入请求日志，失败不影响主流程 */
-export async function writeLog(entry: LogEntry) {
+/** 写入请求日志，失败不影响主流程；返回新日志 id（供积分流水关联），失败返回 null */
+export async function writeLog(entry: LogEntry): Promise<string | null> {
   try {
-    await Promise.all([
-      db.insert(requestLogs).values({ ...entry, error: entry.error?.slice(0, 2000) }),
+    const [row] = await Promise.all([
+      db
+        .insert(requestLogs)
+        .values({ ...entry, error: entry.error?.slice(0, 2000) })
+        .returning({ id: requestLogs.id }),
       entry.apiKeyId
         ? db.update(apiKeys).set({ lastUsedAt: new Date() }).where(eq(apiKeys.id, entry.apiKeyId))
         : Promise.resolve(),
     ]);
+    return row[0]?.id ?? null;
   } catch (err) {
     console.error("[gateway] 写入日志失败", err);
+    return null;
   }
 }
