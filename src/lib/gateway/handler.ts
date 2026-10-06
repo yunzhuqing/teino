@@ -2,7 +2,7 @@ import "server-only";
 import { after } from "next/server";
 import { BILLING_ENABLED, estimateCredits, settleRequest, type BillingTarget } from "../billing/settle";
 import { estimateInputTokens, estimateOutputTokens } from "../billing/estimate";
-import { parseCredit } from "../billing/money";
+import { formatCredit, parseCredit } from "../billing/money";
 import { selectPeriod } from "../billing/pricing";
 import { sha256 } from "../crypto";
 import type { ApiType } from "../db/schema";
@@ -137,7 +137,8 @@ export async function handleGatewayRequest(req: Request, apiType: ApiType): Prom
     const balance = parseCredit(caller.creditBalance);
     // 估算失败（没有匹配价位/汇率）时不拦截，交给结算阶段记录告警
     if (estimated !== null && (balance <= 0n || balance - estimated < 0n)) {
-      errors.push(`积分余额不足：当前 ${caller.creditBalance}，本次预计消耗 ${estimated}`);
+      // estimated 是 1e-6 标度的定标整数，必须格式化后再展示，否则会把 388.5976 显示成 388597600
+      errors.push(`积分余额不足：当前 ${caller.creditBalance}，本次预计消耗 ${formatCredit(estimated)}`);
       after(() => finish(402));
       return errorResponse(apiType, 402, "积分余额不足", { "x-gateway-balance": caller.creditBalance });
     }
