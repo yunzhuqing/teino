@@ -21,7 +21,7 @@ export function Sidebar() {
   return (
     <aside className="glass sticky top-4 flex h-[calc(100vh-2rem)] w-60 shrink-0 flex-col p-4 max-md:hidden">
       <Link href="/" className="mb-8 flex items-center gap-2.5 px-2 pt-1">
-        <div className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-sky-500 shadow-lg shadow-violet-900/50">
+        <div className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-sky-500 shadow-lg shadow-violet-500/30">
           <Sparkles className="size-4.5 text-white" />
         </div>
         <div className="leading-tight">
@@ -38,18 +38,18 @@ export function Sidebar() {
               href={href}
               className={`flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition ${
                 active
-                  ? "bg-white/10 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
-                  : "text-zinc-400 hover:bg-white/5 hover:text-zinc-100"
+                  ? "bg-white/90 text-zinc-900 ring-1 ring-zinc-900/10 shadow-[0_4px_14px_-6px_rgba(15,23,42,0.25)]"
+                  : "text-zinc-600 hover:bg-white/70 hover:text-zinc-900"
               }`}
             >
-              <Icon className={`size-4 ${active ? "text-violet-300" : ""}`} />
+              <Icon className={`size-4 ${active ? "text-violet-600" : ""}`} />
               {label}
             </Link>
           );
         })}
       </nav>
       <form action={logout}>
-        <button type="submit" className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-zinc-400 transition hover:bg-white/5 hover:text-zinc-100">
+        <button type="submit" className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-zinc-600 transition hover:bg-white/70 hover:text-zinc-900">
           <LogOut className="size-4" />
           退出登录
         </button>
@@ -65,7 +65,7 @@ export function MobileNav() {
       {NAV.map(({ href, label }) => {
         const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
         return (
-          <Link key={href} href={href} className={`shrink-0 rounded-lg px-3 py-1.5 text-xs ${active ? "bg-white/10 text-white" : "text-zinc-400"}`}>
+          <Link key={href} href={href} className={`shrink-0 rounded-lg px-3 py-1.5 text-xs ${active ? "bg-white/90 text-zinc-900 ring-1 ring-zinc-900/10" : "text-zinc-500"}`}>
             {label}
           </Link>
         );

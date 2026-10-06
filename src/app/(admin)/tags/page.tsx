@@ -25,7 +25,7 @@ function TagFields({ tag }: { tag?: Tag }) {
           {PALETTE.map((c, i) => (
             <label key={c} className="cursor-pointer">
               <input type="radio" name="color" value={c} defaultChecked={tag ? tag.color === c : i === 0} className="peer sr-only" />
-              <span className="block size-7 rounded-full ring-offset-2 ring-offset-zinc-900 transition peer-checked:ring-2 peer-checked:ring-white/80" style={{ backgroundColor: c }} />
+              <span className="block size-7 rounded-full ring-offset-2 ring-offset-white transition peer-checked:ring-2 peer-checked:ring-zinc-900/70" style={{ backgroundColor: c }} />
             </label>
           ))}
           {tag && !PALETTE.includes(tag.color) ? <input type="radio" name="color" value={tag.color} defaultChecked className="hidden" /> : null}
@@ -78,10 +78,10 @@ export default async function TagsPage() {
                       <td>
                         <TagBadge tag={t} />
                       </td>
-                      <td className="text-zinc-400">{t.description ?? "—"}</td>
+                      <td className="text-zinc-500">{t.description ?? "—"}</td>
                       <td>
                         <div className="flex flex-wrap gap-1">
-                          {entries.length === 0 ? <span className="text-xs text-zinc-600">未使用</span> : null}
+                          {entries.length === 0 ? <span className="text-xs text-zinc-400">未使用</span> : null}
                           {entries.map(([k, label]) => (
                             <Pill key={k}>
                               {label} · {u[k as keyof typeof u]}

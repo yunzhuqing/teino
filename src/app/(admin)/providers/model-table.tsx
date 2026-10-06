@@ -47,27 +47,27 @@ export function ModelTable({
           {models.map((m) => (
             <tr key={m.id}>
               <td className="font-mono text-[13px] font-medium">{m.name}</td>
-              <td className="font-mono text-xs text-zinc-400">{m.upstreamModel ?? "—"}</td>
+              <td className="font-mono text-xs text-zinc-500">{m.upstreamModel ?? "—"}</td>
               <td>
                 {m.apiType ? (
-                  <Pill className="border-sky-400/20 bg-sky-500/10 text-sky-200">{API_TYPE_LABELS[m.apiType]}</Pill>
+                  <Pill className="border-sky-500/25 bg-sky-500/10 text-sky-700">{API_TYPE_LABELS[m.apiType]}</Pill>
                 ) : (
                   <span className="text-xs text-zinc-500">沿用请求</span>
                 )}
               </td>
               <td>
-                <span className="inline-flex min-w-8 justify-center rounded-md bg-violet-500/15 px-1.5 py-0.5 text-xs font-semibold tabular-nums text-violet-200">{m.priority}</span>
+                <span className="inline-flex min-w-8 justify-center rounded-md bg-violet-500/12 px-1.5 py-0.5 text-xs font-semibold tabular-nums text-violet-700">{m.priority}</span>
               </td>
-              <td className="tabular-nums text-zinc-300">
+              <td className="tabular-nums text-zinc-700">
                 {m.weight}
                 {m.weight === 0 ? <span className="ml-1.5 text-xs text-zinc-500">兜底</span> : null}
               </td>
               <td>
                 {m.prices.length === 0 ? (
-                  <span className="text-xs text-zinc-600">未配置</span>
+                  <span className="text-xs text-zinc-400">未配置</span>
                 ) : (
                   <div className="flex flex-wrap items-center gap-1">
-                    <Pill className={m.billingMode === "credit" ? "border-violet-400/20 bg-violet-500/10 text-violet-200" : "border-amber-400/20 bg-amber-500/10 text-amber-200"}>
+                    <Pill className={m.billingMode === "credit" ? "border-violet-500/25 bg-violet-500/10 text-violet-700" : "border-amber-500/25 bg-amber-500/10 text-amber-700"}>
                       {m.billingMode === "credit" ? "积分" : (m.currency ?? "未选币种")}
                     </Pill>
                     <span className="text-xs text-zinc-500">{m.prices.length} 档</span>

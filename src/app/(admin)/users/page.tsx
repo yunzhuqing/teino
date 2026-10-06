@@ -36,7 +36,7 @@ function UserFields({ user, tags }: { user?: UserRow; tags: TagLite[] }) {
         <span className="label">标签</span>
         <TagPicker tags={tags} defaultValue={user?.tagIds} />
       </div>
-      <label className="flex items-center gap-2 text-sm text-zinc-300">
+      <label className="flex items-center gap-2 text-sm text-zinc-700">
         <input type="checkbox" name="enabled" defaultChecked={user?.enabled ?? true} className="size-4 accent-violet-500" />
         启用
       </label>
@@ -85,11 +85,11 @@ export default async function UsersPage() {
                     <td>
                       <TagList ids={u.tagIds} tags={tagMap} />
                     </td>
-                    <td className="tabular-nums text-zinc-300">{u.keyCount}</td>
+                    <td className="tabular-nums text-zinc-700">{u.keyCount}</td>
                     <td>
                       <ToggleSwitch enabled={u.enabled} onToggle={toggleUser.bind(null, u.id)} label="启用用户" />
                     </td>
-                    <td className="text-xs text-zinc-400">{formatDate(u.createdAt)}</td>
+                    <td className="text-xs text-zinc-500">{formatDate(u.createdAt)}</td>
                     <td>
                       <div className="flex justify-end gap-1">
                         <FormDialog title="编辑用户" action={updateUser.bind(null, u.id)} triggerClassName="btn-icon" triggerLabel="编辑" trigger={<Pencil className="size-4" />}>

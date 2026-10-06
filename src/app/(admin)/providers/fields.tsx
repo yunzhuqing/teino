@@ -62,7 +62,7 @@ export function ProviderFields({ provider, tags }: { provider?: ProviderValue; t
         <span className="label">支持的 API 类型</span>
         <div className="grid gap-2 sm:grid-cols-3">
           {API_TYPES.map((t) => (
-            <label key={t} className="flex cursor-pointer flex-col gap-1 rounded-xl border border-white/10 bg-white/[0.03] p-3 transition has-checked:border-violet-400/50 has-checked:bg-violet-500/10">
+            <label key={t} className="flex cursor-pointer flex-col gap-1 rounded-xl border border-zinc-900/10 bg-white/60 p-3 transition has-checked:border-violet-500/40 has-checked:bg-violet-500/10">
               <span className="flex items-center gap-2 text-sm">
                 <input type="checkbox" name="apiTypes" value={t} defaultChecked={provider ? provider.apiTypes.includes(t) : t === "openai_chat"} className="size-4 accent-violet-500" />
                 {API_TYPE_LABELS[t]}
@@ -82,7 +82,7 @@ export function ProviderFields({ provider, tags }: { provider?: ProviderValue; t
         <span className="label">标签</span>
         <TagPicker tags={tags} defaultValue={provider?.tagIds} />
       </div>
-      <label className="flex items-center gap-2 text-sm text-zinc-300">
+      <label className="flex items-center gap-2 text-sm text-zinc-700">
         <input type="checkbox" name="enabled" defaultChecked={provider?.enabled ?? true} className="size-4 accent-violet-500" />
         启用
       </label>
@@ -185,8 +185,8 @@ export function ModelFields({
         </div>
       </div>
       <p className="-mt-2 text-xs text-zinc-500">权重为 0 表示仅在同层其他上游都失败时兜底使用。</p>
-      <div className="rounded-xl border border-white/10 bg-white/2 p-4">
-        <h3 className="mb-3 text-sm font-medium text-zinc-200">计费</h3>
+      <div className="rounded-xl border border-zinc-900/10 bg-white/50 p-4">
+        <h3 className="mb-3 text-sm font-medium text-zinc-700">计费</h3>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label className="label" htmlFor="m-billing">
@@ -243,7 +243,7 @@ export function ModelFields({
         <span className="label">标签</span>
         <TagPicker tags={tags} defaultValue={model?.tagIds} />
       </div>
-      <label className="flex items-center gap-2 text-sm text-zinc-300">
+      <label className="flex items-center gap-2 text-sm text-zinc-700">
         <input type="checkbox" name="enabled" defaultChecked={model?.enabled ?? true} className="size-4 accent-violet-500" />
         启用
       </label>

@@ -6,7 +6,7 @@
 }
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 html,
@@ -15,7 +15,7 @@ body {
 }
 
 body {
-  @apply bg-[#07070d] text-zinc-100 antialiased;
+  @apply bg-[#f6f7fb] text-zinc-900 antialiased;
 }
 
 /* 背景光斑：为磨砂玻璃提供可模糊的色彩 */
@@ -25,6 +25,7 @@ body {
   z-index: -1;
   overflow: hidden;
   pointer-events: none;
+  background: linear-gradient(180deg, #fbfbff 0%, #f4f5fa 100%);
 }
 .aurora::before,
 .aurora::after,
@@ -33,7 +34,7 @@ body {
   position: absolute;
   border-radius: 9999px;
   filter: blur(90px);
-  opacity: 0.55;
+  opacity: 0.35;
   will-change: transform;
 }
 .aurora::before {
@@ -41,7 +42,7 @@ body {
   height: 42rem;
   left: -10rem;
   top: -12rem;
-  background: radial-gradient(circle, #7c3aed 0%, transparent 70%);
+  background: radial-gradient(circle, #8b5cf6 0%, transparent 70%);
   animation: drift 22s ease-in-out infinite alternate;
 }
 .aurora::after {
@@ -49,7 +50,8 @@ body {
   height: 38rem;
   right: -12rem;
   top: 20%;
-  background: radial-gradient(circle, #0ea5e9 0%, transparent 70%);
+  background: radial-gradient(circle, #38bdf8 0%, transparent 70%);
+  opacity: 0.32;
   animation: drift 26s ease-in-out infinite alternate-reverse;
 }
 .aurora span {
@@ -57,14 +59,14 @@ body {
   height: 34rem;
   left: 30%;
   bottom: -16rem;
-  background: radial-gradient(circle, #db2777 0%, transparent 70%);
-  opacity: 0.35;
+  background: radial-gradient(circle, #f472b6 0%, transparent 70%);
+  opacity: 0.26;
   animation: drift 30s ease-in-out infinite alternate;
 }
 .aurora i {
   position: absolute;
   inset: 0;
-  background-image: radial-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+  background-image: radial-gradient(rgba(15, 23, 42, 0.05) 1px, transparent 1px);
   background-size: 24px 24px;
   mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
 }
@@ -86,29 +88,30 @@ body {
   }
 }
 
+/* 浅色磨砂玻璃：白色半透明面板 + 白色高光描边 + 极淡的深色外圈提供轮廓 */
 @utility glass {
-  @apply rounded-2xl border border-white/10 bg-white/[0.04] shadow-[0_8px_32px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-xl;
+  @apply rounded-2xl border border-white/60 bg-white/55 ring-1 ring-zinc-900/5 shadow-[0_10px_30px_-12px_rgba(15,23,42,0.18),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-xl;
 }
 @utility glass-strong {
-  @apply rounded-2xl border border-white/15 bg-zinc-900/60 shadow-[0_24px_64px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-2xl;
+  @apply rounded-2xl border border-white/70 bg-white/85 ring-1 ring-zinc-900/10 shadow-[0_30px_70px_-20px_rgba(15,23,42,0.32),inset_0_1px_0_rgba(255,255,255,1)] backdrop-blur-2xl;
 }
 @utility input {
-  @apply w-full rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-500 transition outline-none focus:border-violet-400/60 focus:bg-white/[0.07] focus:ring-4 focus:ring-violet-500/15;
+  @apply w-full rounded-xl border border-zinc-900/10 bg-white/70 px-3.5 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 transition outline-none focus:border-violet-500/50 focus:bg-white focus:ring-4 focus:ring-violet-500/15;
 }
 @utility label {
-  @apply mb-1.5 block text-xs font-medium tracking-wide text-zinc-400;
+  @apply mb-1.5 block text-xs font-medium tracking-wide text-zinc-500;
 }
 @utility btn {
-  @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition outline-none focus-visible:ring-4 focus-visible:ring-violet-500/30 disabled:cursor-not-allowed disabled:opacity-50;
+  @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition outline-none focus-visible:ring-4 focus-visible:ring-violet-500/25 disabled:cursor-not-allowed disabled:opacity-50;
 }
 @utility btn-primary {
-  @apply btn bg-gradient-to-br from-violet-500 to-indigo-500 text-white shadow-lg shadow-violet-900/40 hover:from-violet-400 hover:to-indigo-400;
+  @apply btn bg-gradient-to-br from-violet-500 to-indigo-500 text-white shadow-lg shadow-violet-500/25 hover:from-violet-600 hover:to-indigo-600 hover:shadow-violet-500/35;
 }
 @utility btn-ghost {
-  @apply btn border border-white/10 bg-white/[0.04] text-zinc-200 hover:bg-white/[0.09];
+  @apply btn border border-zinc-900/10 bg-white/60 text-zinc-700 hover:border-zinc-900/15 hover:bg-white hover:text-zinc-900;
 }
 @utility btn-icon {
-  @apply inline-flex size-8 items-center justify-center rounded-lg text-zinc-400 transition outline-none hover:bg-white/10 hover:text-zinc-100 focus-visible:ring-2 focus-visible:ring-violet-500/40;
+  @apply inline-flex size-8 items-center justify-center rounded-lg text-zinc-500 transition outline-none hover:bg-zinc-900/5 hover:text-zinc-900 focus-visible:ring-2 focus-visible:ring-violet-500/40;
 }
 
 @layer components {
@@ -116,18 +119,18 @@ body {
     @apply w-full text-left text-sm;
   }
   .table th {
-    @apply border-b border-white/10 px-4 py-3 text-xs font-medium tracking-wide text-zinc-400;
+    @apply border-b border-zinc-900/10 px-4 py-3 text-xs font-medium tracking-wide text-zinc-500;
   }
   .table td {
-    @apply border-b border-white/5 px-4 py-3 align-middle;
+    @apply border-b border-zinc-900/5 px-4 py-3 align-middle;
   }
   .table tbody tr {
-    @apply transition-colors hover:bg-white/[0.03];
+    @apply transition-colors hover:bg-white/60;
   }
 }
 
 dialog::backdrop {
-  background: rgba(3, 3, 8, 0.55);
+  background: rgba(15, 23, 42, 0.28);
   backdrop-filter: blur(6px);
 }
 dialog[open] {

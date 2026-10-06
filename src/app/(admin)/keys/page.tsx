@@ -21,8 +21,8 @@ function TopUpFields({ apiKey }: { apiKey: KeyRow }) {
   return (
     <>
       <input type="hidden" name="apiKeyId" value={apiKey.id} />
-      <p className="text-sm text-zinc-400">
-        Key「{apiKey.name}」当前余额 <span className="font-mono text-zinc-200">{formatCreditAmount(apiKey.creditBalance)}</span> 积分
+      <p className="text-sm text-zinc-600">
+        Key「{apiKey.name}」当前余额 <span className="font-mono text-zinc-900">{formatCreditAmount(apiKey.creditBalance)}</span> 积分
       </p>
       <div>
         <label className="label" htmlFor="t-amount">
@@ -72,14 +72,14 @@ function KeyFields({ apiKey, tags, users }: { apiKey?: KeyRow; tags: TagLite[]; 
           <label className="label" htmlFor="k-exp">
             过期时间（北京时间，可选）
           </label>
-          <input id="k-exp" name="expiresAt" type="datetime-local" defaultValue={toLocalInput(apiKey?.expiresAt ?? null)} className="input [color-scheme:dark]" />
+          <input id="k-exp" name="expiresAt" type="datetime-local" defaultValue={toLocalInput(apiKey?.expiresAt ?? null)} className="input [color-scheme:light]" />
         </div>
       </div>
       <div>
         <span className="label">标签</span>
         <TagPicker tags={tags} defaultValue={apiKey?.tagIds} />
       </div>
-      <label className="flex items-center gap-2 text-sm text-zinc-300">
+      <label className="flex items-center gap-2 text-sm text-zinc-700">
         <input type="checkbox" name="enabled" defaultChecked={apiKey?.enabled ?? true} className="size-4 accent-violet-500" />
         启用
       </label>
@@ -132,10 +132,10 @@ export default async function KeysPage() {
                     <tr key={k.id}>
                       <td className="font-medium">{k.name}</td>
                       <td>
-                        <code className="rounded-md bg-white/5 px-1.5 py-0.5 font-mono text-xs text-zinc-300">{k.keyPrefix}</code>
+                        <code className="rounded-md bg-white/70 px-1.5 py-0.5 font-mono text-xs text-zinc-700 ring-1 ring-zinc-900/8">{k.keyPrefix}</code>
                       </td>
-                      <td className="text-zinc-300">{k.userName}</td>
-                      <td className={`font-mono text-sm tabular-nums ${balance <= 0 ? "text-rose-400" : "text-zinc-200"}`}>
+                      <td className="text-zinc-700">{k.userName}</td>
+                      <td className={`font-mono text-sm tabular-nums ${balance <= 0 ? "text-rose-600" : "text-zinc-800"}`}>
                         {formatCreditAmount(k.creditBalance)}
                       </td>
                       <td>
@@ -144,8 +144,8 @@ export default async function KeysPage() {
                       <td>
                         <ToggleSwitch enabled={k.enabled} onToggle={toggleApiKey.bind(null, k.id)} label="启用 Key" />
                       </td>
-                      <td className="text-xs text-zinc-400">{formatDate(k.lastUsedAt)}</td>
-                      <td className={`text-xs ${expired ? "text-rose-400" : "text-zinc-400"}`}>{k.expiresAt ? formatDate(k.expiresAt) : "永不"}</td>
+                      <td className="text-xs text-zinc-500">{formatDate(k.lastUsedAt)}</td>
+                      <td className={`text-xs ${expired ? "text-rose-600" : "text-zinc-500"}`}>{k.expiresAt ? formatDate(k.expiresAt) : "永不"}</td>
                       <td>
                         <div className="flex justify-end gap-1">
                           <FormDialog title="充值积分" action={topUpCredits} submitLabel="确认" triggerClassName="btn-icon" triggerLabel="充值" trigger={<Coins className="size-4" />}>

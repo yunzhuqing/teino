@@ -46,7 +46,7 @@ function CurrencyFields({ currency }: { currency?: Currency }) {
         />
         <p className="mt-1 text-xs text-zinc-500">1 单位本币种等于多少主货币。主货币自身填 1。</p>
       </div>
-      <label className="flex cursor-pointer items-center gap-2 text-sm text-zinc-300">
+      <label className="flex cursor-pointer items-center gap-2 text-sm text-zinc-700">
         <input type="checkbox" name="isBase" defaultChecked={currency?.isBase ?? false} className="size-4 accent-violet-500" />
         设为主货币
       </label>
@@ -116,7 +116,7 @@ function PeriodFields({ period }: { period?: BillingPeriod }) {
         <input id="per-tz" name="timezone" required defaultValue={period?.timezone ?? "Asia/Shanghai"} className="input font-mono" placeholder="Asia/Shanghai" />
         <p className="mt-1 text-xs text-zinc-500">IANA 时区名。按此时区判定「现在属于哪个时段」，与服务器所在时区无关。</p>
       </div>
-      <label className="flex items-center gap-2 text-sm text-zinc-300">
+      <label className="flex items-center gap-2 text-sm text-zinc-700">
         <input type="checkbox" name="enabled" defaultChecked={period?.enabled ?? true} className="size-4 accent-violet-500" />
         启用
       </label>
@@ -137,11 +137,11 @@ export default async function BillingPage() {
 
       <div className="space-y-6">
         <section className="glass overflow-hidden">
-          <div className="flex items-center justify-between border-b border-white/10 px-5 py-3">
+          <div className="flex items-center justify-between border-b border-zinc-900/10 px-5 py-3">
             <div className="flex items-center gap-2">
-              <Coins className="size-4 text-violet-300" />
+              <Coins className="size-4 text-violet-500" />
               <h2 className="text-sm font-medium">币种与汇率</h2>
-              {base ? <Pill>主货币 {base.code}</Pill> : <Pill className="text-amber-300">未设置主货币</Pill>}
+              {base ? <Pill>主货币 {base.code}</Pill> : <Pill className="border-amber-500/25 bg-amber-500/10 text-amber-700">未设置主货币</Pill>}
             </div>
             <FormDialog title="新增 / 更新币种" action={upsertCurrency} trigger={<><Plus className="size-4" />配置币种</>} triggerClassName="btn-ghost h-8 px-3 text-xs">
               <CurrencyFields />
@@ -171,8 +171,8 @@ export default async function BillingPage() {
                         </div>
                       </td>
                       <td className="font-mono text-sm tabular-nums">{c.rateToBase}</td>
-                      <td className="font-mono text-sm tabular-nums">{c.creditRate ?? <span className="text-zinc-600">未配置</span>}</td>
-                      <td>{c.isBase ? <Pill className="border-violet-400/30 text-violet-200">主货币</Pill> : <span className="text-xs text-zinc-600">—</span>}</td>
+                      <td className="font-mono text-sm tabular-nums">{c.creditRate ?? <span className="text-zinc-400">未配置</span>}</td>
+                      <td>{c.isBase ? <Pill className="border-violet-500/25 bg-violet-500/10 text-violet-700">主货币</Pill> : <span className="text-xs text-zinc-400">—</span>}</td>
                       <td>
                         <div className="flex justify-end">
                           <FormDialog title="编辑币种" action={upsertCurrency} triggerClassName="btn-icon" triggerLabel="编辑" trigger={<Pencil className="size-4" />}>
@@ -189,9 +189,9 @@ export default async function BillingPage() {
         </section>
 
         <section className="glass overflow-hidden">
-          <div className="flex items-center justify-between border-b border-white/10 px-5 py-3">
+          <div className="flex items-center justify-between border-b border-zinc-900/10 px-5 py-3">
             <div className="flex items-center gap-2">
-              <Timer className="size-4 text-violet-300" />
+              <Timer className="size-4 text-violet-500" />
               <h2 className="text-sm font-medium">计费时段</h2>
             </div>
             <FormDialog
@@ -230,7 +230,7 @@ export default async function BillingPage() {
                         {minutesToHHMM(p.startMinute)} – {minutesToHHMM(p.endMinute)}
                         {p.startMinute > p.endMinute ? <span className="ml-2 text-xs text-zinc-500">跨午夜</span> : null}
                       </td>
-                      <td className="font-mono text-xs text-zinc-400">{p.timezone}</td>
+                      <td className="font-mono text-xs text-zinc-500">{p.timezone}</td>
                       <td>
                         <ToggleSwitch enabled={p.enabled} onToggle={togglePeriod.bind(null, p.id)} label={`${p.enabled ? "停用" : "启用"}时段 ${p.name}`} />
                       </td>
@@ -252,21 +252,21 @@ export default async function BillingPage() {
 
         <section className="glass p-5">
           <h2 className="text-sm font-medium">计费规则</h2>
-          <ul className="mt-3 space-y-2 text-xs leading-relaxed text-zinc-400">
+          <ul className="mt-3 space-y-2 text-xs leading-relaxed text-zinc-600">
             <li>
-              <span className="text-zinc-300">计价维度</span>：输入、输出、缓存创建、缓存命中四个维度，各自乘以对应 token 数后求和，再乘请求优先级档位的倍率。
+              <span className="text-zinc-800">计价维度</span>：输入、输出、缓存创建、缓存命中四个维度，各自乘以对应 token 数后求和，再乘请求优先级档位的倍率。
             </li>
             <li>
-              <span className="text-zinc-300">选档顺序</span>：先在命中时段里找上下文区间符合的价格档，找不到再回落到 all 兜底档。区间为 [起, 止)，止留空表示无上限。
+              <span className="text-zinc-800">选档顺序</span>：先在命中时段里找上下文区间符合的价格档，找不到再回落到 all 兜底档。区间为 [起, 止)，止留空表示无上限。
             </li>
             <li>
-              <span className="text-zinc-300">扣减方式</span>：请求转发前按估算用量预检余额，不足返回 402；响应返回后按上游实际回报的用量扣减并写积分流水。
+              <span className="text-zinc-800">扣减方式</span>：请求转发前按估算用量预检余额，不足返回 402；响应返回后按上游实际回报的用量扣减并写积分流水。
             </li>
             <li>
-              <span className="text-zinc-300">口径说明</span>：缓存命中与缓存创建的 token 不重复计入输入。上游未上报缓存明细时按 0 计，费用会略高于实际。
+              <span className="text-zinc-800">口径说明</span>：缓存命中与缓存创建的 token 不重复计入输入。上游未上报缓存明细时按 0 计，费用会略高于实际。
             </li>
             <li>
-              <span className="text-zinc-300">灰度开关</span>：环境变量 BILLING_ENABLED 为 true 时才启用计费与扣减，关闭时仅记录 token 用量。
+              <span className="text-zinc-800">灰度开关</span>：环境变量 BILLING_ENABLED 为 true 时才启用计费与扣减，关闭时仅记录 token 用量。
             </li>
           </ul>
         </section>

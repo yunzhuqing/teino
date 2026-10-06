@@ -42,34 +42,34 @@ async function Stats() {
     { label: "API Keys", value: counts.keys, icon: KeyRound, href: "/keys" },
   ];
   const metrics = [
-    { label: "24h 请求", value: formatNumber(traffic.total), icon: Activity, tone: "text-violet-300" },
-    { label: "成功率", value: successRate == null ? "—" : `${successRate}%`, icon: Zap, tone: "text-emerald-300" },
-    { label: "平均延迟", value: traffic.total ? `${formatNumber(traffic.avgLatency)} ms` : "—", icon: Gauge, tone: "text-sky-300" },
-    { label: "Tokens（入 / 出）", value: `${formatNumber(traffic.inputTokens ?? 0)} / ${formatNumber(traffic.outputTokens ?? 0)}`, icon: ArrowUpRight, tone: "text-pink-300" },
+    { label: "24h 请求", value: formatNumber(traffic.total), icon: Activity, tone: "text-violet-500" },
+    { label: "成功率", value: successRate == null ? "—" : `${successRate}%`, icon: Zap, tone: "text-emerald-500" },
+    { label: "平均延迟", value: traffic.total ? `${formatNumber(traffic.avgLatency)} ms` : "—", icon: Gauge, tone: "text-sky-500" },
+    { label: "Tokens（入 / 出）", value: `${formatNumber(traffic.inputTokens ?? 0)} / ${formatNumber(traffic.outputTokens ?? 0)}`, icon: ArrowUpRight, tone: "text-pink-500" },
     {
       label: `24h 费用${base ? `（${base.code}）` : ""}`,
       value: formatMoney(formatAmount(costBase), base?.code),
       icon: Coins,
-      tone: "text-amber-300",
+      tone: "text-amber-500",
     },
     {
       label: "24h 扣减积分",
       value: formatCreditAmount(traffic.creditsCharged ?? 0),
       icon: Coins,
-      tone: "text-violet-300",
+      tone: "text-violet-500",
     },
     {
       label: "Key 余额合计",
       value: formatCreditAmount(totalBalance),
       icon: KeyRound,
-      tone: "text-emerald-300",
+      tone: "text-emerald-500",
       href: "/keys",
     },
     {
       label: "24h 缓存（命中 / 创建）",
       value: `${formatNumber(traffic.cacheReadTokens ?? 0)} / ${formatNumber(traffic.cacheWriteTokens ?? 0)}`,
       icon: Boxes,
-      tone: "text-sky-300",
+      tone: "text-sky-500",
     },
   ];
 
@@ -78,7 +78,7 @@ async function Stats() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {metrics.map(({ label, value, icon: Icon, tone }) => (
           <div key={label} className="glass p-5">
-            <div className="flex items-center justify-between text-xs text-zinc-400">
+            <div className="flex items-center justify-between text-xs text-zinc-500">
               {label}
               <Icon className={`size-4 ${tone}`} />
             </div>
@@ -96,10 +96,10 @@ async function Stats() {
               {byProvider.map((p) => (
                 <div key={p.name}>
                   <div className="mb-1 flex justify-between text-xs">
-                    <span className="text-zinc-300">{p.name}</span>
+                    <span className="text-zinc-700">{p.name}</span>
                     <span className="tabular-nums text-zinc-500">{formatNumber(p.n)}</span>
                   </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-white/5">
+                  <div className="h-2 overflow-hidden rounded-full bg-zinc-900/10">
                     <div className="h-full rounded-full bg-gradient-to-r from-violet-500 to-sky-400" style={{ width: `${(p.n / maxN) * 100}%` }} />
                   </div>
                 </div>
@@ -109,8 +109,8 @@ async function Stats() {
         </div>
         <div className="glass grid grid-cols-2 gap-3 p-5">
           {resources.map(({ label, value, icon: Icon, href }) => (
-            <Link key={label} href={href} className="rounded-xl border border-white/5 bg-white/[0.03] p-3.5 transition hover:border-white/15 hover:bg-white/[0.06]">
-              <Icon className="size-4 text-zinc-400" />
+            <Link key={label} href={href} className="rounded-xl border border-zinc-900/8 bg-white/60 p-3.5 transition hover:border-zinc-900/15 hover:bg-white/90">
+              <Icon className="size-4 text-zinc-500" />
               <div className="mt-2 text-xl font-semibold tabular-nums">{value}</div>
               <div className="text-xs text-zinc-500">{label}</div>
             </Link>
@@ -145,8 +145,8 @@ function QuickStart() {
       <ol className="grid gap-3 md:grid-cols-4">
         {STEPS.map(([title, desc, href], i) => (
           <li key={title}>
-            <Link href={href} className="flex h-full gap-3 rounded-xl border border-white/5 bg-white/[0.02] p-3.5 transition hover:border-white/15">
-              <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-violet-500/20 text-xs font-semibold text-violet-200">{i + 1}</span>
+            <Link href={href} className="flex h-full gap-3 rounded-xl border border-zinc-900/8 bg-white/50 p-3.5 transition hover:border-zinc-900/15 hover:bg-white/90">
+              <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-violet-500/15 text-xs font-semibold text-violet-700">{i + 1}</span>
               <span>
                 <span className="block text-sm font-medium">{title}</span>
                 <span className="mt-0.5 block text-xs text-zinc-500">{desc}</span>

@@ -25,7 +25,7 @@ export function RoutingOverview({ providers }: { providers: Providers }) {
   return (
     <section className="glass mb-5 p-5">
       <div className="mb-4 flex items-center gap-2">
-        <GitBranch className="size-4 text-violet-300" />
+        <GitBranch className="size-4 text-violet-500" />
         <h2 className="text-sm font-semibold">路由总览</h2>
         <span className="text-xs text-zinc-500">按模型名汇总启用的上游 · 高优先级层优先 · 层内按权重分流（未考虑标签过滤）</span>
       </div>
@@ -33,7 +33,7 @@ export function RoutingOverview({ providers }: { providers: Providers }) {
         {names.map((name) => {
           const tiers = groupByPriority(byName.get(name) ?? []);
           return (
-            <div key={name} className="rounded-xl border border-white/10 bg-white/[0.02] p-3.5">
+            <div key={name} className="rounded-xl border border-zinc-900/8 bg-white/50 p-3.5">
               <div className="mb-2.5 font-mono text-[13px] font-medium">{name}</div>
               <div className="space-y-2.5">
                 {tiers.map((tier, ti) => {
@@ -45,14 +45,14 @@ export function RoutingOverview({ providers }: { providers: Providers }) {
                           {ti === 0 ? "主层" : `降级 ${ti}`} · 优先级 {tier.priority}
                         </span>
                       </div>
-                      <div className="flex h-2 overflow-hidden rounded-full bg-white/5">
+                      <div className="flex h-2 overflow-hidden rounded-full bg-zinc-900/10">
                         {tier.items.map((i, idx) =>
                           i.weight > 0 ? (
                             <div key={idx} style={{ width: `${(i.weight / total) * 100}%`, backgroundColor: BAR_COLORS[idx % BAR_COLORS.length] }} />
                           ) : null,
                         )}
                       </div>
-                      <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-zinc-400">
+                      <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-zinc-600">
                         {tier.items.map((i, idx) => (
                           <span key={idx} className="inline-flex items-center gap-1">
                             <span className="size-1.5 rounded-full" style={{ backgroundColor: BAR_COLORS[idx % BAR_COLORS.length] }} />

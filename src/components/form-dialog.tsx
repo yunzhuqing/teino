@@ -34,7 +34,7 @@ export function FormDialog({ title, description, trigger, triggerClassName = "bt
       </button>
       <dialog
         ref={dialogRef}
-        className={`glass-strong m-auto w-[calc(100%-2rem)] p-0 text-zinc-100 ${wide ? "max-w-2xl" : "max-w-lg"}`}
+        className={`glass-strong m-auto w-[calc(100%-2rem)] p-0 text-zinc-900 ${wide ? "max-w-2xl" : "max-w-lg"}`}
         onClick={(e) => {
           if (e.target === e.currentTarget) close();
         }}
@@ -75,7 +75,7 @@ function DialogBody({
     return (
       <div className="p-6">
         <h2 className="text-lg font-semibold">创建成功</h2>
-        <p className="mt-1 text-sm text-amber-300/90">请立即复制保存，该 Key 只会显示这一次。</p>
+        <p className="mt-1 text-sm text-amber-600">请立即复制保存，该 Key 只会显示这一次。</p>
         <SecretBox value={state.secret} />
         <div className="mt-6 flex justify-end">
           <button type="button" className="btn-primary" onClick={onClose}>
@@ -88,18 +88,18 @@ function DialogBody({
 
   return (
     <form action={formAction}>
-      <div className="flex items-start justify-between gap-4 border-b border-white/10 px-6 py-4">
+      <div className="flex items-start justify-between gap-4 border-b border-zinc-900/10 px-6 py-4">
         <div>
           <h2 className="text-base font-semibold">{title}</h2>
-          {description ? <p className="mt-0.5 text-xs text-zinc-400">{description}</p> : null}
+          {description ? <p className="mt-0.5 text-xs text-zinc-500">{description}</p> : null}
         </div>
         <button type="button" onClick={onClose} className="btn-icon -mr-2" aria-label="关闭">
           <X className="size-4" />
         </button>
       </div>
       <div className="max-h-[65vh] space-y-4 overflow-y-auto px-6 py-5">{children}</div>
-      <div className="flex items-center justify-end gap-3 border-t border-white/10 px-6 py-4">
-        {state.error ? <p className="mr-auto text-sm text-rose-400">{state.error}</p> : null}
+      <div className="flex items-center justify-end gap-3 border-t border-zinc-900/10 px-6 py-4">
+        {state.error ? <p className="mr-auto text-sm text-rose-600">{state.error}</p> : null}
         <button type="button" className="btn-ghost" onClick={onClose}>
           取消
         </button>
@@ -115,8 +115,8 @@ function DialogBody({
 function SecretBox({ value }: { value: string }) {
   const [copied, setCopied] = useState(false);
   return (
-    <div className="mt-4 flex items-center gap-2 rounded-xl border border-violet-400/30 bg-violet-500/10 p-3">
-      <code className="flex-1 font-mono text-sm break-all text-violet-100">{value}</code>
+    <div className="mt-4 flex items-center gap-2 rounded-xl border border-violet-500/25 bg-violet-500/10 p-3">
+      <code className="flex-1 font-mono text-sm break-all text-violet-900">{value}</code>
       <button
         type="button"
         className="btn-icon"

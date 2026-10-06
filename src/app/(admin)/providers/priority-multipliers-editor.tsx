@@ -37,7 +37,7 @@ export function PriorityMultipliersEditor({ name = "priorityMultipliers", defaul
       </div>
 
       {rows.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-white/10 px-3 py-3 text-xs text-zinc-500">
+        <p className="rounded-xl border border-dashed border-zinc-900/15 bg-white/40 px-3 py-3 text-xs text-zinc-500">
           未配置时所有请求按 1 倍计价。
         </p>
       ) : (
@@ -60,7 +60,7 @@ export function PriorityMultipliersEditor({ name = "priorityMultipliers", defaul
                 placeholder="1"
                 aria-label={`第 ${i + 1} 个倍率`}
               />
-              <button type="button" className="btn-icon size-7 text-rose-400/80" onClick={() => setRows((rs) => rs.filter((_, j) => j !== i))} aria-label={`删除第 ${i + 1} 个档位`}>
+              <button type="button" className="btn-icon size-7 text-rose-500/80 hover:bg-rose-500/10 hover:text-rose-600" onClick={() => setRows((rs) => rs.filter((_, j) => j !== i))} aria-label={`删除第 ${i + 1} 个档位`}>
                 <Trash2 className="size-3.5" />
               </button>
             </div>

@@ -61,14 +61,14 @@ export function PriceTiersEditor({ name = "prices", defaultValue }: { name?: str
       </div>
 
       {rows.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-white/10 px-3 py-4 text-center text-xs text-zinc-500">
+        <p className="rounded-xl border border-dashed border-zinc-900/15 bg-white/40 px-3 py-4 text-center text-xs text-zinc-500">
           尚未配置价格档，该模型不会被计费。
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-white/10">
+        <div className="overflow-x-auto rounded-xl border border-zinc-900/10">
           <table className="w-full text-xs">
             <thead>
-              <tr className="border-b border-white/10 text-zinc-400">
+              <tr className="border-b border-zinc-900/10 text-zinc-500">
                 {COLUMNS.map((c) => (
                   <th key={c.key} className="px-2 py-2 text-left font-medium whitespace-nowrap">
                     {c.label}
@@ -79,7 +79,7 @@ export function PriceTiersEditor({ name = "prices", defaultValue }: { name?: str
             </thead>
             <tbody>
               {rows.map((row, i) => (
-                <tr key={i} className="border-b border-white/5 last:border-0">
+                <tr key={i} className="border-b border-zinc-900/5 last:border-0">
                   {COLUMNS.map((c) => (
                     <td key={c.key} className="px-1 py-1">
                       <input
@@ -93,7 +93,7 @@ export function PriceTiersEditor({ name = "prices", defaultValue }: { name?: str
                     </td>
                   ))}
                   <td className="px-1">
-                    <button type="button" className="btn-icon size-7 text-rose-400/80" onClick={() => setRows((rs) => rs.filter((_, j) => j !== i))} aria-label={`删除第 ${i + 1} 档`}>
+                    <button type="button" className="btn-icon size-7 text-rose-500/80 hover:bg-rose-500/10 hover:text-rose-600" onClick={() => setRows((rs) => rs.filter((_, j) => j !== i))} aria-label={`删除第 ${i + 1} 档`}>
                       <Trash2 className="size-3.5" />
                     </button>
                   </td>

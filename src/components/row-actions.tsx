@@ -14,10 +14,10 @@ export function ToggleSwitch({ enabled, onToggle, label }: { enabled: boolean; o
       disabled={pending}
       onClick={() => startTransition(() => onToggle(!enabled))}
       className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition disabled:opacity-60 ${
-        enabled ? "border-emerald-400/40 bg-emerald-500/30" : "border-white/10 bg-white/5"
+        enabled ? "border-emerald-500/40 bg-emerald-500/25" : "border-zinc-900/10 bg-zinc-900/10"
       }`}
     >
-      <span className={`inline-block size-3.5 rounded-full bg-white shadow transition-transform ${enabled ? "translate-x-4.5" : "translate-x-0.5"}`} />
+      <span className={`inline-block size-3.5 rounded-full bg-white shadow-sm ring-1 ring-zinc-900/10 transition-transform ${enabled ? "translate-x-4.5" : "translate-x-0.5"}`} />
     </button>
   );
 }
@@ -27,7 +27,7 @@ export function DeleteButton({ onDelete, confirmText }: { onDelete: () => Promis
   return (
     <button
       type="button"
-      className="btn-icon hover:bg-rose-500/15 hover:text-rose-300"
+      className="btn-icon hover:bg-rose-500/10 hover:text-rose-600"
       aria-label="删除"
       title="删除"
       disabled={pending}

@@ -30,8 +30,12 @@ export function TagPicker({ tags, defaultValue = [] }: { tags: TagLite[]; defaul
             className="inline-flex cursor-pointer items-center gap-1 rounded-full border px-2.5 py-1 text-xs transition select-none"
             style={
               on
-                ? { color: t.color, borderColor: `${t.color}88`, backgroundColor: `${t.color}22` }
-                : { color: "#a1a1aa", borderColor: "rgba(255,255,255,0.1)" }
+                ? {
+                    color: `color-mix(in oklab, ${t.color} 62%, black)`,
+                    borderColor: `color-mix(in oklab, ${t.color} 40%, transparent)`,
+                    backgroundColor: `color-mix(in oklab, ${t.color} 16%, transparent)`,
+                  }
+                : { color: "#71717a", borderColor: "rgba(24,24,27,0.12)", backgroundColor: "rgba(255,255,255,0.6)" }
             }
           >
             <input type="checkbox" name="tagIds" value={t.id} checked={on} onChange={() => toggle(t.id)} className="sr-only" />
