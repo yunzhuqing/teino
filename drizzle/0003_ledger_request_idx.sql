@@ -1,0 +1,1 @@
+CREATE INDEX "credit_ledger_request_idx" ON "credit_ledger" USING btree ("request_log_id");

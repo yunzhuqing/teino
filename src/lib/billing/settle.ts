@@ -2,7 +2,7 @@ import "server-only";
 import { eq, sql } from "drizzle-orm";
 import { db } from "../db";
 import { apiKeys, creditLedger, requestLogs, type BillingMode, type CurrencyCode } from "../db/schema";
-import { estimateCredits as estimateCreditsPure, selectPeriod, settle, computeCost, type CurrencyRow, type PeriodWindow, type PriceTier } from "./pricing";
+import { estimateCredits as estimateCreditsPure, selectPeriod, settle, computeCost, type CurrencyRow, type PeriodWindow, type PriceSnapshot, type PriceTier } from "./pricing";
 import { formatAmount, formatCredit } from "./money";
 
 /**
@@ -83,6 +83,10 @@ export async function settleRequest(input: ChargeInput): Promise<void> {
       return;
     }
 
+    // 快照要记录当时的汇率：汇率日后被改动时，只有这样才能还原这次的折算链路
+    const usedCurrency = input.currencies.find((c) => c.code === input.target.currency);
+    const baseRow = input.currencies.find((c) => c.isBase);
+
     // 原子扣减：用单条 UPDATE 而非「读-改-写」，Neon HTTP driver 无交互式事务。
     // 余额允许扣成负数：请求已经服务完毕，欠账必须留在账上，门槛由 handler 的预检承担。
     const [updated] = await db
@@ -93,13 +97,19 @@ export async function settleRequest(input: ChargeInput): Promise<void> {
 
     const balanceAfter = updated?.creditBalance ?? "0";
 
-    const priceSnapshot = {
+    const priceSnapshot: PriceSnapshot = {
       tierId: cost.tierId,
       period: cost.period,
       priorityTier: cost.priorityTier,
       multiplier: cost.multiplier,
       overflowed: cost.overflowed,
+      // 各维度金额是应用倍率**之前**的值，合计 × multiplier 才等于费用总额
       breakdown: cost.breakdown.map((b) => ({ kind: b.kind, tokens: b.tokens, unitPrice: b.unitPrice, amount: formatAmount(b.amount) })),
+      currency: s.currency,
+      rateToBase: input.target.billingMode === "token" ? (usedCurrency?.rateToBase ?? null) : null,
+      creditRate: input.target.billingMode === "token" ? (baseRow?.creditRate ?? null) : null,
+      baseCurrency: baseRow?.code ?? null,
+      amountBase: input.target.billingMode === "token" ? formatAmount(s.amountBase) : null,
     };
 
     // 日志写入失败时 requestLogId 为 null，此时只记流水、不回写日志

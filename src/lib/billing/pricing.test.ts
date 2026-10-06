@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { ALL_PERIOD, computeCost, estimateCredits, resolveMultiplier, selectPeriod, selectTier, settle, toBase, type PriceTier } from "./pricing";
-import { parseCredit, parseMultiplier } from "./money";
+import { ALL_PERIOD, BREAKDOWN_LABELS, computeCost, estimateCredits, resolveMultiplier, selectPeriod, selectTier, settle, toBase, type PriceTier } from "./pricing";
+import { applyMultiplier, parseCredit, parseMultiplier } from "./money";
 
 /** 复刻用户给的样例：gpt-6.1-sol 两档价格 */
 function tier(over: Partial<PriceTier>): PriceTier {
@@ -402,4 +402,52 @@ test("estimateCredits 在零用量时返回 0，不等于无法计价", () => {
     currencies: CURRENCIES,
   });
   assert.equal(credits, 0n);
+});
+
+test("快照的四个维度都有中文标签，日志明细靠它渲染", () => {
+  // 将来新增计费维度却忘了加标签时，明细表会露出英文 key，这条用例提前拦住
+  for (const kind of ["input", "output", "cacheWrite", "cacheRead"] as const) {
+    assert.ok(BREAKDOWN_LABELS[kind], `缺少 ${kind} 的中文标签`);
+  }
+});
+
+test("computeCost 的 breakdown 覆盖全部四个维度且顺序稳定", () => {
+  const r = computeCost({
+    tiers: TIERS,
+    contextTokens: 1000,
+    inputTokens: 10,
+    outputTokens: 20,
+    cacheReadTokens: 30,
+    cacheWriteTokens: 40,
+    priorityMultipliers: {},
+    period: ALL_PERIOD,
+  })!;
+  assert.deepEqual(
+    r.breakdown.map((b) => b.kind),
+    ["input", "output", "cacheWrite", "cacheRead"],
+  );
+  // 明细行的 token 数必须与用量一致，否则对不上账
+  assert.deepEqual(
+    r.breakdown.map((b) => b.tokens),
+    [10, 20, 40, 30],
+  );
+  // 单价保留原始 numeric 字符串，明细直接展示
+  assert.equal(r.breakdown[0].unitPrice, "2");
+  assert.equal(r.breakdown[3].unitPrice, "0.1");
+});
+
+test("明细各维度之和 × 倍率 等于费用总额（弹窗合计行的依据）", () => {
+  const r = computeCost({
+    tiers: TIERS,
+    contextTokens: 100_000,
+    inputTokens: 1_000_000,
+    outputTokens: 500_000,
+    cacheReadTokens: 200_000,
+    cacheWriteTokens: 100_000,
+    priorityMultipliers: { priority: 3 },
+    priorityTier: "priority",
+    period: ALL_PERIOD,
+  })!;
+  const sum = r.breakdown.reduce((acc, b) => acc + b.amount, 0n);
+  assert.equal(applyMultiplier(sum, parseMultiplier(3)), r.amountScaled);
 });

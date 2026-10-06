@@ -2,7 +2,7 @@ import "server-only";
 import { count, desc, eq, gte, sql, sum } from "drizzle-orm";
 import { requireAdmin } from "./auth";
 import { db } from "./db";
-import { apiKeys, currencies, models, providers, requestLogs, users } from "./db/schema";
+import { apiKeys, creditLedger, currencies, models, providers, requestLogs, users } from "./db/schema";
 
 export async function getRecentLogs(limit = 100) {
   await requireAdmin();
@@ -27,15 +27,20 @@ export async function getRecentLogs(limit = 100) {
       period: requestLogs.period,
       priorityTier: requestLogs.priorityTier,
       multiplier: requestLogs.multiplier,
+      priceTierId: requestLogs.priceTierId,
       error: requestLogs.error,
       providerName: providers.name,
       userName: users.name,
       keyName: apiKeys.name,
+      // 结算时的单价快照：明细的唯一凭据，价格档事后被改也不受影响
+      priceSnapshot: creditLedger.priceSnapshot,
+      balanceAfter: creditLedger.balanceAfter,
     })
     .from(requestLogs)
     .leftJoin(providers, eq(providers.id, requestLogs.providerId))
     .leftJoin(users, eq(users.id, requestLogs.userId))
     .leftJoin(apiKeys, eq(apiKeys.id, requestLogs.apiKeyId))
+    .leftJoin(creditLedger, eq(creditLedger.requestLogId, requestLogs.id))
     .orderBy(desc(requestLogs.createdAt))
     .limit(limit);
 }

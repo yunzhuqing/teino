@@ -1,3 +1,4 @@
+import type { PriceSnapshot } from "../billing/pricing";
 import {
   boolean,
   index,
@@ -278,12 +279,13 @@ export const creditLedger = pgTable(
     /** 消费时的原币金额，用于对账 */
     amountOriginal: numeric("amount_original", { precision: AMOUNT_PRECISION, scale: AMOUNT_SCALE }),
     currency: currencyCodeEnum("currency"),
-    /** 结算时的档位/倍率/时段快照，价格后续被改动也能还原当时的算法 */
-    priceSnapshot: jsonb("price_snapshot").$type<Record<string, unknown>>(),
+    /** 结算时的档位/倍率/时段快照，价格后续被改动也能还原当时的算法；也是计费明细的唯一凭据 */
+    priceSnapshot: jsonb("price_snapshot").$type<PriceSnapshot>(),
     note: text("note"),
     createdAt: createdAt(),
   },
-  (t) => [index("credit_ledger_key_created_idx").on(t.apiKeyId, t.createdAt)],
+  // request_log_id 供日志详情反查明细，(api_key_id, created_at) 供按 Key 分页查余额流水
+  (t) => [index("credit_ledger_key_created_idx").on(t.apiKeyId, t.createdAt), index("credit_ledger_request_idx").on(t.requestLogId)],
 );
 
 export type Tag = typeof tags.$inferSelect;

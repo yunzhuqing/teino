@@ -45,6 +45,41 @@ export interface UsageBreakdown {
   amount: bigint;
 }
 
+/** 明细行的中文标签，日志弹窗与流水共用 */
+export const BREAKDOWN_LABELS: Record<UsageBreakdown["kind"], string> = {
+  input: "输入",
+  output: "输出",
+  cacheWrite: "缓存创建",
+  cacheRead: "缓存命中",
+};
+
+/**
+ * 结算时写进 credit_ledger.price_snapshot 的快照。
+ *
+ * 价格档日后被改动或删除，靠这份快照仍能还原当时是按哪个档、哪个时段、什么单价算出来的，
+ * 所以它是计费明细的唯一凭据（request_logs 只存结果，不存单价）。
+ */
+export interface PriceSnapshot {
+  tierId: string;
+  period: string;
+  priorityTier: string | null;
+  multiplier: number;
+  /** 用量超出所有档位、按最贵档兜底计费 */
+  overflowed: boolean;
+  /** 各维度金额是应用倍率之前的值，合计 × multiplier 才等于费用总额 */
+  breakdown: Array<{ kind: UsageBreakdown["kind"]; tokens: number; unitPrice: string; amount: string }>;
+  /** 记录当时所用的汇率，便于事后复核折算链路 */
+  currency?: string | null;
+  /** 1 单位原币 = 多少主货币 */
+  rateToBase?: string | null;
+  /** 1 单位主货币 = 多少积分 */
+  creditRate?: string | null;
+  /** 主货币代码，折算展示时用 */
+  baseCurrency?: string | null;
+  /** 折算后的主货币金额（credit 模式为空） */
+  amountBase?: string | null;
+}
+
 export interface PriceInput {
   tiers: PriceTier[];
   /** 判定档位用的上下文总量 */

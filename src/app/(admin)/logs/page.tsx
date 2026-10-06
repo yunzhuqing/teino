@@ -2,6 +2,7 @@ import { Activity } from "lucide-react";
 import { EmptyState, formatCreditAmount, formatDate, formatMoney, formatNumber, PageHeader, Pill } from "@/components/ui";
 import { API_TYPE_LABELS } from "@/lib/gateway/upstream";
 import { getRecentLogs } from "@/lib/stats";
+import { BillingDetail } from "./billing-detail";
 
 function statusClass(status: number) {
   if (status >= 200 && status < 400) return "bg-emerald-500/15 text-emerald-300";
@@ -71,10 +72,30 @@ export default async function LogsPage() {
                       )}
                     </td>
                     <td className="text-right text-xs tabular-nums text-zinc-300">
-                      {Number(l.costOriginal) > 0 ? formatMoney(l.costOriginal, l.currency) : <span className="text-zinc-600">—</span>}
-                      {/* 非 1 倍或命中非兜底时段时标出来，便于核对计价规则 */}
-                      {l.period && l.period !== "all" ? <span className="ml-1 text-[10px] text-sky-300">{l.period}</span> : null}
-                      {l.multiplier && Number(l.multiplier) !== 1 ? <span className="ml-1 text-[10px] text-amber-300">×{l.multiplier}</span> : null}
+                      {Number(l.costOriginal) > 0 ? (
+                        <div className="flex flex-col items-end">
+                          <span>{formatMoney(l.costOriginal, l.currency)}</span>
+                          <div className="mt-0.5 flex items-center gap-1.5 text-[10px]">
+                            {/* 非 1 倍或命中非兜底时段时标出来，便于一眼看出计价规则 */}
+                            {l.period && l.period !== "all" ? <span className="text-sky-300">{l.period}</span> : null}
+                            {l.multiplier && Number(l.multiplier) !== 1 ? <span className="text-amber-300">×{l.multiplier}</span> : null}
+                            <BillingDetail
+                              model={l.model}
+                              providerName={l.providerName}
+                              currency={l.currency}
+                              costOriginal={l.costOriginal}
+                              creditsCharged={l.creditsCharged}
+                              period={l.period}
+                              priorityTier={l.priorityTier}
+                              multiplier={l.multiplier}
+                              snapshot={l.priceSnapshot}
+                              balanceAfter={l.balanceAfter}
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-zinc-600">—</span>
+                      )}
                     </td>
                     <td className="text-right text-xs tabular-nums text-violet-200">
                       {Number(l.creditsCharged) !== 0 ? formatCreditAmount(l.creditsCharged) : <span className="text-zinc-600">—</span>}
