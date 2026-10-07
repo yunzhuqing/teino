@@ -86,3 +86,16 @@ export function canAccessPath(session: Session, pathname: string): boolean {
   const isConsole = pathname === "/console" || pathname.startsWith("/console/");
   return session.role === "admin" ? !isConsole : isConsole;
 }
+
+/** 管理员登录页的真实路由；外部只能经 ADMIN_LOGIN_PATH 改写进来，直接访问按不存在的页面处理 */
+export const ADMIN_LOGIN_ROUTE = "/admin-login";
+
+/**
+ * 管理员登录入口（ADMIN_LOGIN_PATH）。要求单段且至少 12 位，既难猜又不会与现有页面路径冲突。
+ * 未配置或格式不对时返回 null，即关闭管理员登录。
+ */
+export function getAdminLoginPath(value = process.env.ADMIN_LOGIN_PATH): string | null {
+  if (!value) return null;
+  const path = value.startsWith("/") ? value : `/${value}`;
+  return /^\/[A-Za-z0-9_-]{12,}$/.test(path) ? path : null;
+}

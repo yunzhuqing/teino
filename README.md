@@ -16,8 +16,11 @@ AI 网关，基于 Next.js 16 (App Router) + TypeScript + Drizzle ORM + Neon Pos
 
 | 角色 | 登录方式 | 可访问 |
 | --- | --- | --- |
-| 管理员 | 登录页「管理员」标签 + `ADMIN_PASSWORD` | 除 `/console` 外的全部管理页面 |
-| 普通用户 | 登录页「用户登录」标签 + 邮箱 / 密码（在「用户」页设置） | 仅 `/console/*`，所有数据按会话中的用户 id 过滤 |
+| 管理员 | 访问 `ADMIN_LOGIN_PATH` 配置的不公开路径 + `ADMIN_PASSWORD` | 除 `/console` 外的全部管理页面 |
+| 普通用户 | `/login`，邮箱 / 密码（在「用户」页设置） | 仅 `/console/*`，所有数据按会话中的用户 id 过滤 |
+
+- `/login` 只有用户登录，页面上没有任何管理员入口；管理员登录页的真实路由 `/admin-login` 不能直接访问，未登录时访问其他管理页面也只会被送到 `/login`
+- 未配置 `ADMIN_LOGIN_PATH`（或少于 12 位）时管理员登录关闭
 
 - 用户不能给 Key 打标签或充值，这两项会影响路由范围和余额，仍由管理员操作；还有积分余额的 Key 不允许用户删除
 - 用户被停用后，其控制台会话在下一次请求时立即失效
@@ -53,7 +56,7 @@ AI 网关，基于 Next.js 16 (App Router) + TypeScript + Drizzle ORM + Neon Pos
 ## 本地开发
 
 ```bash
-cp .env.example .env.local   # 填入 DATABASE_URL / ADMIN_PASSWORD / GATEWAY_SECRET
+cp .env.example .env.local   # 填入 DATABASE_URL / ADMIN_PASSWORD / ADMIN_LOGIN_PATH / GATEWAY_SECRET
 npm install
 npm run db:migrate           # 或 npm run db:push
 npm run dev
@@ -62,7 +65,7 @@ npm run dev
 ## 部署到 Vercel
 
 1. 导入仓库到 Vercel，在 Storage 中添加 **Neon** 集成（会自动注入 `DATABASE_URL`）
-2. 配置环境变量 `ADMIN_PASSWORD`、`GATEWAY_SECRET`（`openssl rand -base64 32`）
+2. 配置环境变量 `ADMIN_PASSWORD`、`ADMIN_LOGIN_PATH`（管理员登录入口，如 `/ops-$(openssl rand -hex 6)`）、`GATEWAY_SECRET`（`openssl rand -base64 32`）
 3. 数据库迁移会在每次部署时自动执行（`vercel-build` 脚本先运行 `scripts/migrate.mjs` 再 `next build`，已执行的迁移会跳过）。也可以手动执行：`vercel env pull .env.local && npm run db:migrate`
    - 如果在 Vercel 项目设置里覆盖过 Build Command，请改回默认值或改成 `npm run vercel-build`
 4. 网关路由设置了 `maxDuration = 300`，用于长时间的流式响应（需要 Fluid Compute，新项目默认开启）

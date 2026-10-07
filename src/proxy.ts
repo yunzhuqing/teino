@@ -1,19 +1,32 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { canAccessPath, homeFor, SESSION_COOKIE, verifySessionToken } from "@/lib/session";
+import { ADMIN_LOGIN_ROUTE, canAccessPath, getAdminLoginPath, homeFor, SESSION_COOKIE, verifySessionToken } from "@/lib/session";
 
-/** 管理后台与用户控制台的乐观鉴权；Server Action 内部仍会再次校验角色 */
+/**
+ * 登录拦截与按角色分流；Server Action 内部仍会再次校验角色。
+ * 管理员登录页只能经 ADMIN_LOGIN_PATH 进入（内部改写到 ADMIN_LOGIN_ROUTE），
+ * 对其他人表现得和任何不存在的路径一样，不暴露管理端的存在。
+ */
 export async function proxy(request: NextRequest) {
   const session = await verifySessionToken(request.cookies.get(SESSION_COOKIE)?.value);
   const { pathname } = request.nextUrl;
-  const isLogin = pathname === "/login";
+  const adminLoginPath = getAdminLoginPath();
+
+  if (adminLoginPath && pathname === adminLoginPath) {
+    if (session?.role === "admin") return NextResponse.redirect(new URL(homeFor(session), request.url));
+    // 已登录的普通用户访问时，与其他非控制台路径一样被送回控制台
+    if (!session) return NextResponse.rewrite(new URL(ADMIN_LOGIN_ROUTE, request.url));
+  }
 
   if (!session) {
-    if (isLogin) return NextResponse.next();
+    if (pathname === "/login") return NextResponse.next();
     const url = new URL("/login", request.url);
-    if (pathname !== "/") url.searchParams.set("next", pathname);
+    // 只为控制台页面保留回跳地址，避免在登录页 URL 里露出管理端路径
+    if (pathname.startsWith("/console")) url.searchParams.set("next", pathname);
     return NextResponse.redirect(url);
   }
-  if (isLogin || !canAccessPath(session, pathname)) return NextResponse.redirect(new URL(homeFor(session), request.url));
+  if (pathname === "/login" || pathname === ADMIN_LOGIN_ROUTE || !canAccessPath(session, pathname)) {
+    return NextResponse.redirect(new URL(homeFor(session), request.url));
+  }
   return NextResponse.next();
 }
 
