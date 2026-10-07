@@ -73,6 +73,9 @@ export function ModelTable({
                     <span className="text-xs text-zinc-500">{m.prices.length} 档</span>
                     {/* 主档（最低上下文档）的输入单价，让运营一眼看出量级 */}
                     {m.prices[0] ? <span className="font-mono text-[11px] text-zinc-500">入 {m.prices[0].inputPrice}/M</span> : null}
+                    {Number(m.discount) !== 1 ? (
+                      <Pill className="border-emerald-500/25 bg-emerald-500/10 text-emerald-700">×{Number(m.discount)} 折扣</Pill>
+                    ) : null}
                   </div>
                 )}
               </td>

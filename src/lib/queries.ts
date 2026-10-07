@@ -61,6 +61,7 @@ export async function getProvidersWithModels() {
         billingMode: models.billingMode,
         currency: models.currency,
         priorityMultipliers: models.priorityMultipliers,
+        discount: models.discount,
         enabled: models.enabled,
       })
       .from(models)

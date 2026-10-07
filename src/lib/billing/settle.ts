@@ -17,6 +17,8 @@ export interface BillingTarget {
   billingMode: BillingMode;
   currency: CurrencyCode | null;
   priorityMultipliers: Record<string, number>;
+  /** 模型折扣率（numeric 字符串） */
+  discount: string;
   prices: PriceTier[];
 }
 
@@ -57,6 +59,7 @@ export async function settleRequest(input: ChargeInput): Promise<void> {
         cacheWriteTokens: input.cacheWriteTokens,
         priorityTier: input.priorityTier,
         priorityMultipliers: input.target.priorityMultipliers,
+        discount: input.target.discount,
         period,
       },
       // 正式结算时超出档位按最贵档兜底，宁可多收也不白送
@@ -102,8 +105,9 @@ export async function settleRequest(input: ChargeInput): Promise<void> {
       period: cost.period,
       priorityTier: cost.priorityTier,
       multiplier: cost.multiplier,
+      discount: cost.discount,
       overflowed: cost.overflowed,
-      // 各维度金额是应用倍率**之前**的值，合计 × multiplier 才等于费用总额
+      // 各维度金额是应用倍率与折扣**之前**的值，合计 × multiplier × discount 才等于费用总额
       breakdown: cost.breakdown.map((b) => ({ kind: b.kind, tokens: b.tokens, unitPrice: b.unitPrice, amount: formatAmount(b.amount) })),
       currency: s.currency,
       rateToBase: input.target.billingMode === "token" ? (usedCurrency?.rateToBase ?? null) : null,
@@ -164,6 +168,7 @@ export function estimateCredits(params: {
     currency: params.target.currency,
     priorityMultipliers: params.target.priorityMultipliers,
     priorityTier: params.priorityTier,
+    discount: params.target.discount,
     period: params.period,
     inputTokens: params.inputTokens,
     outputTokens: params.outputTokens,

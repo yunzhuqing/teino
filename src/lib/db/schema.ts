@@ -131,6 +131,8 @@ export const models = pgTable(
     currency: currencyCodeEnum("currency"),
     /** 请求优先级档位 -> 倍率，如 {"standard":1,"priority":2,"batch":0.5}；未声明的档位按 1 计 */
     priorityMultipliers: jsonb("priority_multipliers").$type<Record<string, number>>().notNull().default({}),
+    /** 供应商给的折扣率：1 = 无折扣，0.85 = 85 折。与倍率一起在合计后应用；同名模型在不同供应商下可各不相同 */
+    discount: numeric("discount", { precision: AMOUNT_PRECISION, scale: 4 }).notNull().default("1"),
     enabled: boolean("enabled").notNull().default(true),
     createdAt: createdAt(),
     updatedAt: updatedAt(),

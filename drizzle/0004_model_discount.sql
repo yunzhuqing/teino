@@ -1,0 +1,1 @@
+ALTER TABLE "models" ADD COLUMN "discount" numeric(20, 4) DEFAULT '1' NOT NULL;

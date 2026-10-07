@@ -59,6 +59,8 @@ function DetailBody(props: BillingDetailProps & { onClose: () => void }) {
   }, []);
 
   const multiplier = snap ? snap.multiplier : props.multiplier ? Number(props.multiplier) : 1;
+  // 旧快照没有折扣字段，视为无折扣
+  const discount = snap?.discount ?? 1;
   const money = (v: string | null | undefined, code?: string | null) => formatMoney(v, code ?? props.currency);
 
   return (
@@ -116,6 +118,7 @@ function DetailBody(props: BillingDetailProps & { onClose: () => void }) {
                     <td className="px-3 py-2" colSpan={3}>
                       合计
                       {multiplier !== 1 ? <span className="ml-1 text-amber-700">× {multiplier} 倍</span> : null}
+                      {discount !== 1 ? <span className="ml-1 text-emerald-700">× {discount} 折扣</span> : null}
                     </td>
                     <td className="px-3 py-2 text-right font-mono tabular-nums">{money(props.costOriginal, snap.currency ?? props.currency)}</td>
                   </tr>
@@ -126,6 +129,7 @@ function DetailBody(props: BillingDetailProps & { onClose: () => void }) {
             <dl className="space-y-2 text-xs">
               <Line label="计费时段">{snap.period}</Line>
               <Line label="请求优先级档位">{snap.priorityTier ?? "未声明（按 1 倍）"}</Line>
+              <Line label="供应商折扣">{discount === 1 ? "无" : `× ${discount}`}</Line>
 
               {/* 折算链路：token 计价模型才有，用来核对当时用的汇率 */}
               {snap.currency ? (

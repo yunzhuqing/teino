@@ -2,7 +2,7 @@ import {
   AMOUNT_DECIMALS,
   amountScaleToCredit,
   amountToCredits,
-  applyMultiplier,
+  applyFactors,
   charge,
   convertCurrency,
   formatAmount,
@@ -64,9 +64,11 @@ export interface PriceSnapshot {
   period: string;
   priorityTier: string | null;
   multiplier: number;
+  /** 模型折扣率（1 = 无折扣）。旧快照没有该字段，按 1 处理 */
+  discount?: number;
   /** 用量超出所有档位、按最贵档兜底计费 */
   overflowed: boolean;
-  /** 各维度金额是应用倍率之前的值，合计 × multiplier 才等于费用总额 */
+  /** 各维度金额是应用倍率与折扣之前的值，合计 × multiplier × discount 才等于费用总额 */
   breakdown: Array<{ kind: UsageBreakdown["kind"]; tokens: number; unitPrice: string; amount: string }>;
   /** 记录当时所用的汇率，便于事后复核折算链路 */
   currency?: string | null;
@@ -91,6 +93,8 @@ export interface PriceInput {
   /** 请求声明的优先级档位（如 standard / priority / batch）；为空则倍率为 1 */
   priorityTier?: string | null;
   priorityMultipliers: Record<string, number>;
+  /** 模型折扣率（numeric 字符串，1 = 无折扣）；为空按 1 计 */
+  discount?: string | number | null;
   /** 命中的时段名，由 selectPeriod 给出 */
   period: string;
   /** 模型币种（token 模式） */
@@ -102,6 +106,7 @@ export interface PriceResult {
   period: string;
   priorityTier: string | null;
   multiplier: number;
+  discount: number;
   /** 原币费用，1e-8 标度的字符串（未折算，未换算积分） */
   amountOriginal: string;
   /** 同上，定标整数形式，便于调用方继续折算 */
@@ -172,8 +177,14 @@ export function resolveMultiplier(multipliers: Record<string, number>, priorityT
   return v === undefined ? 10_000n : parseMultiplier(v);
 }
 
+/** 模型折扣率；未配置按 1 计（无折扣） */
+export function resolveDiscount(discount?: string | number | null): bigint {
+  if (discount === null || discount === undefined || discount === "") return 10_000n;
+  return parseMultiplier(discount);
+}
+
 /**
- * 按用量算出原币费用。四个计费维度各自按单价计费后求和，倍率在合计后一次应用。
+ * 按用量算出原币费用。四个计费维度各自按单价计费后求和，倍率与折扣在合计后一次应用。
  * 调用方负责把结果折算成主货币或积分（见 currency.ts）。
  *
  * overflow 为真时（正式结算）：用量超出所有档位就按最贵的档兜底，不返回 null，
@@ -187,6 +198,7 @@ export function computeCost(input: PriceInput, overflow = false): PriceResult | 
   const overflowed = overflow && !(input.contextTokens >= tier.contextMin && (tier.contextMax === null || input.contextTokens < tier.contextMax));
 
   const multiplierScaled = resolveMultiplier(input.priorityMultipliers, input.priorityTier);
+  const discountScaled = resolveDiscount(input.discount);
 
   const dimensions: Array<{ kind: UsageBreakdown["kind"]; tokens: number; price: string }> = [
     { kind: "input", tokens: input.inputTokens, price: tier.inputPrice },
@@ -203,12 +215,14 @@ export function computeCost(input: PriceInput, overflow = false): PriceResult | 
     breakdown.push({ kind: d.kind, tokens: d.tokens, unitPrice: d.price, amount });
   }
 
-  const amountScaled = applyMultiplier(total, multiplierScaled);
+  // 倍率与折扣合并成一次乘除，避免两次舍入叠加误差
+  const amountScaled = applyFactors(total, [multiplierScaled, discountScaled]);
   return {
     tierId: tier.id,
     period: input.period,
     priorityTier: input.priorityTier ?? null,
     multiplier: multiplierToNumber(multiplierScaled),
+    discount: multiplierToNumber(discountScaled),
     amountOriginal: formatAmount(amountScaled),
     amountScaled,
     breakdown,
@@ -288,6 +302,7 @@ export function estimateCredits(params: {
   currency?: string | null;
   priorityMultipliers: Record<string, number>;
   priorityTier?: string | null;
+  discount?: string | number | null;
   period: string;
   inputTokens: number;
   outputTokens: number;
@@ -303,6 +318,7 @@ export function estimateCredits(params: {
     cacheWriteTokens: 0,
     priorityTier: params.priorityTier,
     priorityMultipliers: params.priorityMultipliers,
+    discount: params.discount,
     period: params.period,
   });
   if (!cost) return null;

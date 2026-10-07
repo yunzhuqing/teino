@@ -98,7 +98,18 @@ export function charge(tokens: number, unitPriceScaled: Scaled): Scaled {
 
 /** 各计费维度之和，倍率在合计后一次应用，避免逐项舍入叠加误差 */
 export function applyMultiplier(total: Scaled, multiplierScaled: bigint): Scaled {
-  return divRound(total * multiplierScaled, MULTIPLIER_SCALE);
+  return applyFactors(total, [multiplierScaled]);
+}
+
+/** 多个乘法因子（倍率、折扣，均为 1e-4 标度）合并后一次应用，整条链路只舍入一次 */
+export function applyFactors(total: Scaled, factorsScaled: bigint[]): Scaled {
+  let numerator = total;
+  let denominator = 1n;
+  for (const f of factorsScaled) {
+    numerator *= f;
+    denominator *= MULTIPLIER_SCALE;
+  }
+  return divRound(numerator, denominator);
 }
 
 /** 金额转积分：按「1 单位主货币 = rate 积分」折算。rate 是汇率，按金额标度解析（与 numeric(20,8) 对齐） */

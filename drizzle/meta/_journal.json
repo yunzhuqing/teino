@@ -29,6 +29,13 @@
       "when": 1791289247355,
       "tag": "0003_ledger_request_idx",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791371011484,
+      "tag": "0004_model_discount",
+      "breakpoints": true
     }
   ]
 }

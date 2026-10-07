@@ -30,6 +30,8 @@ export interface CandidateWithSecret extends RouteCandidate {
   billingMode: BillingMode;
   currency: CurrencyCode | null;
   priorityMultipliers: Record<string, number>;
+  /** 供应商折扣率（numeric 字符串，1 = 无折扣） */
+  discount: string;
   /** 该模型启用的价格档，按 period 分组由计价模块挑选 */
   prices: PriceTier[];
   provider: RouteCandidate["provider"] & {
@@ -133,6 +135,7 @@ export async function loadRoutingContext(keyHash: string, modelName: string, req
     billingMode: r.billingMode,
     currency: r.currency,
     priorityMultipliers: r.priorityMultipliers,
+    discount: r.discount,
     prices: pricesByModel.get(r.modelId) ?? [],
     provider: {
       id: r.providerId,
@@ -168,6 +171,7 @@ function loadCandidates(modelName: string) {
       billingMode: models.billingMode,
       currency: models.currency,
       priorityMultipliers: models.priorityMultipliers,
+      discount: models.discount,
       providerId: providers.id,
       providerName: providers.name,
       providerEnabled: providers.enabled,

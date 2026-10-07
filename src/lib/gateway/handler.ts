@@ -40,6 +40,7 @@ function billingTarget(target: CandidateWithSecret): BillingTarget {
     billingMode: target.billingMode,
     currency: target.currency,
     priorityMultipliers: target.priorityMultipliers,
+    discount: target.discount,
     prices: target.prices,
   };
 }

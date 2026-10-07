@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { ALL_PERIOD, BREAKDOWN_LABELS, computeCost, estimateCredits, resolveMultiplier, selectPeriod, selectTier, settle, toBase, type PriceTier } from "./pricing";
-import { applyMultiplier, parseCredit, parseMultiplier } from "./money";
+import { applyFactors, applyMultiplier, parseCredit, parseMultiplier } from "./money";
 
 /** 复刻用户给的样例：gpt-6.1-sol 两档价格 */
 function tier(over: Partial<PriceTier>): PriceTier {
@@ -450,4 +450,64 @@ test("明细各维度之和 × 倍率 等于费用总额（弹窗合计行的依
   })!;
   const sum = r.breakdown.reduce((acc, b) => acc + b.amount, 0n);
   assert.equal(applyMultiplier(sum, parseMultiplier(3)), r.amountScaled);
+});
+
+test("computeCost 套用供应商折扣，未配置时按 1", () => {
+  const base = {
+    tiers: TIERS,
+    contextTokens: 1000,
+    inputTokens: 1_000_000,
+    outputTokens: 0,
+    cacheReadTokens: 0,
+    cacheWriteTokens: 0,
+    priorityMultipliers: {},
+    period: ALL_PERIOD,
+  };
+  const none = computeCost(base)!;
+  assert.equal(none.discount, 1);
+  assert.equal(none.amountOriginal, "2.00000000");
+  const discounted = computeCost({ ...base, discount: "0.85" })!;
+  assert.equal(discounted.discount, 0.85);
+  assert.equal(discounted.amountOriginal, "1.70000000");
+});
+
+test("折扣与倍率一起在合计后一次应用", () => {
+  const r = computeCost({
+    tiers: TIERS,
+    contextTokens: 1000,
+    inputTokens: 1_000_000,
+    outputTokens: 0,
+    cacheReadTokens: 0,
+    cacheWriteTokens: 0,
+    priorityTier: "priority",
+    priorityMultipliers: { priority: 2 },
+    discount: "0.85",
+    period: ALL_PERIOD,
+  })!;
+  // $2 × 2 × 0.85 = $3.4
+  assert.equal(r.amountOriginal, "3.40000000");
+  const sum = r.breakdown.reduce((acc, b) => acc + b.amount, 0n);
+  assert.equal(applyFactors(sum, [parseMultiplier(2), parseMultiplier("0.85")]), r.amountScaled);
+});
+
+test("倍率与折扣合并后只舍入一次", () => {
+  // 分两次舍入：5 × 0.5 = 2.5 → 3，再 × 0.5 = 1.5 → 2；合并舍入：5 × 0.25 = 1.25 → 1
+  assert.equal(applyFactors(5n, [parseMultiplier("0.5"), parseMultiplier("0.5")]), 1n);
+});
+
+test("estimateCredits 预检同样套用折扣", () => {
+  const credits = estimateCredits({
+    tiers: TIERS,
+    billingMode: "token",
+    currency: "USD",
+    priorityMultipliers: {},
+    priorityTier: null,
+    discount: "0.5",
+    period: ALL_PERIOD,
+    inputTokens: 100_000,
+    outputTokens: 0,
+    currencies: CURRENCIES,
+  })!;
+  // $0.2 × 0.5 = $0.1 → 10 积分
+  assert.equal(credits, parseCredit("10"));
 });

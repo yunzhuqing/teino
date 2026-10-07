@@ -74,6 +74,14 @@ const modelSchema = z.object({
     .optional()
     .transform((v) => v || null),
   priorityMultipliers: jsonField(multiplierSchema, "优先级倍率"),
+  /** 折扣率：(0, 1] 之间、最多 4 位小数（与 numeric(20,4) 对齐）；留空按 1（无折扣） */
+  discount: z
+    .string()
+    .trim()
+    .optional()
+    .transform((v) => (v ? v : "1"))
+    .refine((v) => /^\d+(\.\d{1,4})?$/.test(v), "折扣必须是不超过 4 位小数的数字")
+    .refine((v) => Number(v) > 0 && Number(v) <= 1, "折扣须在 0 到 1 之间（1 表示无折扣，0.85 表示 85 折）"),
   prices: jsonField(z.array(priceTierSchema), "价格档"),
   enabled: z.unknown().optional().transform((v) => v === "on"), // 未勾选的复选框不会出现在表单中
   tagIds: z.array(z.uuid()),

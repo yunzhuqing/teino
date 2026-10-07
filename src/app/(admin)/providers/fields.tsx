@@ -100,6 +100,8 @@ interface ModelValue {
   billingMode: BillingMode;
   currency: CurrencyCode | null;
   priorityMultipliers: Record<string, number>;
+  /** numeric 字符串，1 = 无折扣 */
+  discount: string;
   enabled: boolean;
   tagIds: string[];
   /** 数据库行：金额是 numeric 字符串，区间是整数 */
@@ -220,6 +222,20 @@ export function ModelFields({
             </select>
           </div>
         </div>
+        <div className="mt-4">
+          <label className="label" htmlFor="m-discount">
+            供应商折扣
+          </label>
+          <input
+            id="m-discount"
+            name="discount"
+            inputMode="decimal"
+            defaultValue={model ? Number(model.discount).toString() : "1"}
+            className="input w-32 tabular-nums"
+            placeholder="1"
+          />
+          <p className="mt-1 text-xs text-zinc-500">折扣率：1 表示无折扣，0.85 表示 85 折。同名模型在不同供应商下可各填各的。</p>
+        </div>
         <div className="mt-4 space-y-4">
           <PriceTiersEditor
             defaultValue={model?.prices?.map((p) => ({
@@ -235,7 +251,7 @@ export function ModelFields({
           <PriorityMultipliersEditor defaultValue={model?.priorityMultipliers} />
         </div>
         <p className="mt-3 text-xs text-zinc-500">
-          单价的单位是「每 100 万 token」，按 {billingMode === "credit" ? "积分" : "所选币种"} 填写；四个维度分别乘以各自 token 数后求和，再乘优先级倍率。
+          单价的单位是「每 100 万 token」，按 {billingMode === "credit" ? "积分" : "所选币种"} 填写；四个维度分别乘以各自 token 数后求和，再乘优先级倍率与供应商折扣。
           请求实际用量由上游回报，预检时按上下文长度估算。
         </p>
       </div>
