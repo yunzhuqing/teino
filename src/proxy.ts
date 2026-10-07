@@ -1,17 +1,19 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { SESSION_COOKIE, verifySessionToken } from "@/lib/session";
+import { canAccessPath, homeFor, SESSION_COOKIE, verifySessionToken } from "@/lib/session";
 
-/** 管理后台的乐观鉴权；Server Action 内部仍会再次校验 */
+/** 管理后台与用户控制台的乐观鉴权；Server Action 内部仍会再次校验角色 */
 export async function proxy(request: NextRequest) {
-  const ok = await verifySessionToken(request.cookies.get(SESSION_COOKIE)?.value);
-  const isLogin = request.nextUrl.pathname === "/login";
+  const session = await verifySessionToken(request.cookies.get(SESSION_COOKIE)?.value);
+  const { pathname } = request.nextUrl;
+  const isLogin = pathname === "/login";
 
-  if (!ok && !isLogin) {
+  if (!session) {
+    if (isLogin) return NextResponse.next();
     const url = new URL("/login", request.url);
-    if (request.nextUrl.pathname !== "/") url.searchParams.set("next", request.nextUrl.pathname);
+    if (pathname !== "/") url.searchParams.set("next", pathname);
     return NextResponse.redirect(url);
   }
-  if (ok && isLogin) return NextResponse.redirect(new URL("/", request.url));
+  if (isLogin || !canAccessPath(session, pathname)) return NextResponse.redirect(new URL(homeFor(session), request.url));
   return NextResponse.next();
 }
 

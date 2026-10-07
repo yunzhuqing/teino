@@ -51,18 +51,29 @@ export function upstreamApiType(c: Pick<RouteCandidate, "modelApiType">, request
 }
 
 export function filterCandidates<T extends RouteCandidate>(candidates: readonly T[], req: RouteRequest): T[] {
-  const caller = new Set(req.callerTagIds);
   const required = req.requiredTagIds ?? [];
 
   return candidates.filter((c) => {
     if (c.modelName !== req.model || !c.modelEnabled) return false;
     if (!c.provider.enabled || !c.provider.apiTypes.includes(upstreamApiType(c, req.apiType))) return false;
 
-    if (caller.size === 0 && required.length === 0) return true;
+    if (req.callerTagIds.length === 0 && required.length === 0) return true;
     const tags = new Set([...c.provider.tagIds, ...c.modelTagIds]);
-    if (caller.size > 0 && !req.callerTagIds.some((t) => tags.has(t))) return false;
+    if (!matchesCallerTags(tags, req.callerTagIds)) return false;
     return required.every((t) => tags.has(t));
   });
+}
+
+/** 标签规则第 2 条前半：调用方无标签不受限，否则上游标签需与之有交集 */
+export function matchesCallerTags(upstreamTags: ReadonlySet<string>, callerTagIds: readonly string[]): boolean {
+  return callerTagIds.length === 0 || callerTagIds.some((t) => upstreamTags.has(t));
+}
+
+/** 调用方能否用到该候选（不区分请求协议），用于模型列表展示 */
+export function isVisibleTo(c: RouteCandidate, callerTagIds: readonly string[]): boolean {
+  if (!c.modelEnabled || !c.provider.enabled) return false;
+  if (c.modelApiType && !c.provider.apiTypes.includes(c.modelApiType)) return false;
+  return matchesCallerTags(new Set([...c.provider.tagIds, ...c.modelTagIds]), callerTagIds);
 }
 
 /** 加权随机排序（无放回），weight<=0 的排在最后并保持原序 */

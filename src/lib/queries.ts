@@ -97,6 +97,7 @@ export async function getUsers() {
         note: users.note,
         enabled: users.enabled,
         createdAt: users.createdAt,
+        canLogin: sql<boolean>`${users.passwordHash} is not null`,
         keyCount: sql<number>`(select count(*)::int from ${apiKeys} where ${apiKeys.userId} = ${users.id})`,
       })
       .from(users)

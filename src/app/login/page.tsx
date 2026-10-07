@@ -12,10 +12,10 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           </div>
           <div>
             <h1 className="text-xl font-semibold tracking-tight">Teino AI Gateway</h1>
-            <p className="mt-1 text-sm text-zinc-500">登录管理控制台</p>
+            <p className="mt-1 text-sm text-zinc-500">登录控制台</p>
           </div>
         </div>
-        <LoginForm next={next ?? "/"} />
+        <LoginForm next={next ?? ""} />
       </div>
     </main>
   );

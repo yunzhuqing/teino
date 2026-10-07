@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { filterCandidates, planRoute, trafficShares, weightedShuffle, type RouteCandidate } from "./routing";
+import { filterCandidates, isVisibleTo, planRoute, trafficShares, weightedShuffle, type RouteCandidate } from "./routing";
 
 function cand(id: string, opts: Partial<RouteCandidate> & { providerTags?: string[]; apiTypes?: RouteCandidate["provider"]["apiTypes"]; providerEnabled?: boolean } = {}): RouteCandidate {
   return {
@@ -88,4 +88,13 @@ test("trafficShares：按优先级层内计算占比", () => {
   assert.equal(s.get(a), 0.75);
   assert.equal(s.get(b), 0.25);
   assert.equal(s.get(c), 1);
+});
+
+test("isVisibleTo：模型列表与路由的标签规则一致", () => {
+  const tagged = cand("a", { providerTags: ["vip"] });
+  assert.equal(isVisibleTo(tagged, []), true, "无标签调用方不受限");
+  assert.equal(isVisibleTo(tagged, ["vip"]), true);
+  assert.equal(isVisibleTo(tagged, ["cn"]), false);
+  assert.equal(isVisibleTo(cand("b", { providerEnabled: false }), []), false);
+  assert.equal(isVisibleTo(cand("c", { modelApiType: "anthropic_messages", apiTypes: ["openai_chat"] }), []), false, "供应商不支持模型声明的上游协议");
 });

@@ -1,24 +1,7 @@
 import "server-only";
-import { and, eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "../db";
-import { apiKeys, models, providers, requestLogs, type ApiType } from "../db/schema";
-
-/** /v1/models：列出所有启用的模型名 */
-export async function loadAvailableModelNames(apiType?: ApiType) {
-  const rows = await db
-    .selectDistinct({ name: models.name })
-    .from(models)
-    .innerJoin(providers, eq(providers.id, models.providerId))
-    .where(
-      and(
-        eq(models.enabled, true),
-        eq(providers.enabled, true),
-        apiType ? sql`${apiType}::api_type = any(${providers.apiTypes})` : undefined,
-      ),
-    )
-    .orderBy(models.name);
-  return rows.map((r) => r.name);
-}
+import { apiKeys, requestLogs, type ApiType } from "../db/schema";
 
 export interface LogEntry {
   apiKeyId: string | null;

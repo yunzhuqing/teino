@@ -1,5 +1,8 @@
 import "server-only";
-import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
+import { createCipheriv, createDecipheriv, createHash, randomBytes, scrypt, timingSafeEqual } from "node:crypto";
+import { promisify } from "node:util";
+
+const scryptAsync = promisify(scrypt) as (password: string, salt: Buffer, keylen: number) => Promise<Buffer>;
 
 function secret(): string {
   const s = process.env.GATEWAY_SECRET;
@@ -38,4 +41,21 @@ export function generateApiKey(): { key: string; hash: string; prefix: string } 
 export function maskSecret(value: string): string {
   if (value.length <= 8) return "••••";
   return `${value.slice(0, 4)}…${value.slice(-4)}`;
+}
+
+const PASSWORD_KEYLEN = 64;
+
+/** 用户控制台密码：scrypt，存储格式 scrypt$<salt>$<hash>（base64url） */
+export async function hashPassword(password: string): Promise<string> {
+  const salt = randomBytes(16);
+  const hash = await scryptAsync(password, salt, PASSWORD_KEYLEN);
+  return `scrypt$${salt.toString("base64url")}$${hash.toString("base64url")}`;
+}
+
+export async function verifyPassword(password: string, stored: string | null | undefined): Promise<boolean> {
+  const [algo, salt, hash] = stored?.split("$") ?? [];
+  if (algo !== "scrypt" || !salt || !hash) return false;
+  const expected = Buffer.from(hash, "base64url");
+  const actual = await scryptAsync(password, Buffer.from(salt, "base64url"), expected.length);
+  return timingSafeEqual(actual, expected);
 }

@@ -9,7 +9,20 @@ AI 网关，基于 Next.js 16 (App Router) + TypeScript + Drizzle ORM + Neon Pos
 - **标签**：可以打在供应商、模型、用户、API Key 上，用于路由
 - **路由**：先按标签过滤，再按优先级分层，层内按权重加权随机，失败时自动故障转移
 - **日志**：记录状态码、尝试次数、延迟、token 用量（支持流式）
+- **用户控制台**（`/console`）：管理员给用户设置邮箱 + 登录密码后，用户可自助创建 / 停用 / 删除自己的 Key，查看可用模型与价格、按 Key 与模型统计的费用和 token，以及按 Key / 模型 / 日期筛选的请求明细
 - **界面**：深色玻璃磨砂风格（backdrop-blur + 动态光斑背景）
+
+## 角色
+
+| 角色 | 登录方式 | 可访问 |
+| --- | --- | --- |
+| 管理员 | 登录页「管理员」标签 + `ADMIN_PASSWORD` | 除 `/console` 外的全部管理页面 |
+| 普通用户 | 登录页「用户登录」标签 + 邮箱 / 密码（在「用户」页设置） | 仅 `/console/*`，所有数据按会话中的用户 id 过滤 |
+
+- 用户不能给 Key 打标签或充值，这两项会影响路由范围和余额，仍由管理员操作；还有积分余额的 Key 不允许用户删除
+- 用户被停用后，其控制台会话在下一次请求时立即失效
+- `/v1/models` 只列出该 Key 按标签规则能路由到的模型，与控制台「模型」页一致
+- 请求明细里的上游错误会隐藏供应商名和上游响应体，只保留状态码
 
 ## 路由规则
 
@@ -76,8 +89,10 @@ const anthropic = new Anthropic({ baseURL: "https://<your-app>.vercel.app", apiK
 
 ```
 src/
-  proxy.ts                    管理后台登录拦截（Next 16 Proxy）
+  proxy.ts                    登录拦截与按角色分流（Next 16 Proxy）
   app/(admin)/                管理界面：概览、供应商与模型、用户、Keys、标签、日志、文档
+  app/console/                用户控制台：用量、Keys、模型、请求明细、文档
+  lib/console.ts              用户控制台的数据读取（全部按当前用户限定）
   app/api/v1/*                网关端点（/v1/* 通过 rewrite 映射）
   lib/db/schema.ts            Drizzle 表结构
   lib/gateway/routing.ts      路由算法（纯函数，含单元测试）
@@ -87,7 +102,7 @@ src/
   lib/gateway/protocol/*      三种协议 ⇄ IR 的编解码器（含 SSE）
   lib/gateway/convert.ts      转换编排：请求、响应、流式、错误
   lib/gateway/sse.ts          SSE 帧解析与序列化
-  lib/actions/*               Server Actions（都会校验管理员会话）
+  lib/actions/*               Server Actions（管理端校验管理员会话，my-keys.ts 校验用户会话）
 drizzle/                      SQL 迁移
 ```
 

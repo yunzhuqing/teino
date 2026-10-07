@@ -2,6 +2,7 @@
 
 import { useTransition } from "react";
 import { Loader2, Trash2 } from "lucide-react";
+import type { ActionState } from "@/lib/types";
 
 export function ToggleSwitch({ enabled, onToggle, label }: { enabled: boolean; onToggle: (next: boolean) => Promise<void>; label: string }) {
   const [pending, startTransition] = useTransition();
@@ -22,7 +23,8 @@ export function ToggleSwitch({ enabled, onToggle, label }: { enabled: boolean; o
   );
 }
 
-export function DeleteButton({ onDelete, confirmText }: { onDelete: () => Promise<void>; confirmText: string }) {
+/** onDelete 可返回 ActionState，带 error 时弹出提示（如业务上不允许删除） */
+export function DeleteButton({ onDelete, confirmText }: { onDelete: () => Promise<void | ActionState>; confirmText: string }) {
   const [pending, startTransition] = useTransition();
   return (
     <button
@@ -32,7 +34,11 @@ export function DeleteButton({ onDelete, confirmText }: { onDelete: () => Promis
       title="删除"
       disabled={pending}
       onClick={() => {
-        if (confirm(confirmText)) startTransition(() => onDelete());
+        if (!confirm(confirmText)) return;
+        startTransition(async () => {
+          const result = await onDelete();
+          if (result?.error) alert(result.error);
+        });
       }}
     >
       {pending ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}

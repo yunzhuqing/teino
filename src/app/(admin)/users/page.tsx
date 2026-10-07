@@ -27,6 +27,13 @@ function UserFields({ user, tags }: { user?: UserRow; tags: TagLite[] }) {
         </div>
       </div>
       <div>
+        <label className="label" htmlFor="u-password">
+          控制台登录密码
+        </label>
+        <input id="u-password" name="password" type="password" autoComplete="new-password" minLength={8} className="input" placeholder={user?.canLogin ? "留空则不修改" : "可选，至少 8 位"} />
+        <p className="mt-1 text-xs text-zinc-500">设置后，用户可用邮箱 + 密码登录控制台，自助管理 Key、查看用量与请求明细。</p>
+      </div>
+      <div>
         <label className="label" htmlFor="u-note">
           备注
         </label>
@@ -52,7 +59,7 @@ export default async function UsersPage() {
     <>
       <PageHeader
         title="用户"
-        description="用户拥有 API Key；用户标签会与其 Key 的标签合并参与路由。停用用户后其所有 Key 失效。"
+        description="用户拥有 API Key；用户标签会与其 Key 的标签合并参与路由。停用用户后其所有 Key 与控制台登录失效。"
         action={
           <FormDialog title="新建用户" action={createUser} trigger={<><Plus className="size-4" />新建用户</>}>
             <UserFields tags={tags} />
@@ -70,6 +77,7 @@ export default async function UsersPage() {
                   <th>用户</th>
                   <th>标签</th>
                   <th>Keys</th>
+                  <th>控制台</th>
                   <th>状态</th>
                   <th>创建时间</th>
                   <th className="w-24" />
@@ -86,6 +94,7 @@ export default async function UsersPage() {
                       <TagList ids={u.tagIds} tags={tagMap} />
                     </td>
                     <td className="tabular-nums text-zinc-700">{u.keyCount}</td>
+                    <td className="text-xs">{u.canLogin && u.email ? <span className="text-emerald-600">可登录</span> : <span className="text-zinc-400">未开通</span>}</td>
                     <td>
                       <ToggleSwitch enabled={u.enabled} onToggle={toggleUser.bind(null, u.id)} label="启用用户" />
                     </td>

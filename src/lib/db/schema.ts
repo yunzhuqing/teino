@@ -177,6 +177,8 @@ export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
   email: text("email").unique(),
+  /** 用户控制台登录密码（scrypt）；为空表示该用户不能登录控制台 */
+  passwordHash: text("password_hash"),
   note: text("note"),
   enabled: boolean("enabled").notNull().default(true),
   createdAt: createdAt(),
@@ -260,6 +262,8 @@ export const requestLogs = pgTable(
   (t) => [
     index("request_logs_created_idx").on(t.createdAt),
     index("request_logs_key_created_idx").on(t.apiKeyId, t.createdAt),
+    // 用户控制台按用户 + 时间范围查明细与用量
+    index("request_logs_user_created_idx").on(t.userId, t.createdAt),
   ],
 );
 
