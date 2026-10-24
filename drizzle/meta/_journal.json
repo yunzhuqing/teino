@@ -43,6 +43,13 @@
       "when": 1791372925601,
       "tag": "0005_user_console",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792846760247,
+      "tag": "0006_colorful_hawkeye",
+      "breakpoints": true
     }
   ]
 }

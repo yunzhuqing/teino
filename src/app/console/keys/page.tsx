@@ -1,8 +1,10 @@
+import { ApiKeyCopyButton } from "@/components/api-key-copy-button";
 import { KeyRound, Pencil, Plus } from "lucide-react";
 import { FormDialog } from "@/components/form-dialog";
 import { DeleteButton, ToggleSwitch } from "@/components/row-actions";
 import { EmptyState, formatCreditAmount, formatDate, PageHeader } from "@/components/ui";
 import { createMyApiKey, deleteMyApiKey, toggleMyApiKey, updateMyApiKey } from "@/lib/actions/my-keys";
+import { getMyApiKeySecret } from "@/lib/actions/my-keys";
 import { getMyKeys } from "@/lib/console";
 import { DEFAULT_UTC_OFFSET_MINUTES } from "@/lib/timezone";
 
@@ -49,7 +51,7 @@ export default async function MyKeysPage() {
       />
       <section className="glass overflow-hidden">
         {keys.length === 0 ? (
-          <EmptyState icon={<KeyRound className="size-5" />} title="还没有 API Key" hint="点击右上角创建第一个 Key，完整密钥只会显示一次。" />
+          <EmptyState icon={<KeyRound className="size-5" />} title="还没有 API Key" hint="点击右上角创建第一个 Key，创建后可在列表中复制完整密钥。" />
         ) : (
           <div className="overflow-x-auto">
             <table className="table">
@@ -73,7 +75,10 @@ export default async function MyKeysPage() {
                     <tr key={k.id}>
                       <td className="font-medium">{k.name}</td>
                       <td>
-                        <code className="rounded-md bg-white/70 px-1.5 py-0.5 font-mono text-xs text-zinc-700 ring-1 ring-zinc-900/8">{k.keyPrefix}</code>
+                        <div className="flex items-center gap-2">
+                          <code className="rounded-md bg-white/70 px-1.5 py-0.5 font-mono text-xs text-zinc-700 ring-1 ring-zinc-900/8">{k.keyPrefix}</code>
+                          <ApiKeyCopyButton available={k.canCopy} getSecret={getMyApiKeySecret.bind(null, k.id)} />
+                        </div>
                       </td>
                       <td className={`text-right font-mono text-sm tabular-nums ${balance <= 0 ? "text-rose-600" : "text-zinc-800"}`}>{formatCreditAmount(k.creditBalance)}</td>
                       <td>

@@ -3,7 +3,7 @@
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { requireUser } from "../auth";
-import { generateApiKey } from "../crypto";
+import { decrypt, encrypt, generateApiKey } from "../crypto";
 import { db } from "../db";
 import { apiKeys, entityTags } from "../db/schema";
 import type { ActionState } from "../types";
@@ -46,7 +46,7 @@ export async function createMyApiKey(_prev: ActionState, fd: FormData): Promise<
     const existing = await db.$count(apiKeys, eq(apiKeys.userId, user.id));
     if (existing >= MAX_KEYS_PER_USER) return { error: `最多只能创建 ${MAX_KEYS_PER_USER} 个 Key` };
     const { key, hash, prefix } = generateApiKey();
-    await db.insert(apiKeys).values({ ...parsed.data, userId: user.id, keyHash: hash, keyPrefix: prefix });
+    await db.insert(apiKeys).values({ ...parsed.data, userId: user.id, keyHash: hash, keyPrefix: prefix, keyEncrypted: encrypt(key) });
     refresh();
     return { ok: true, secret: key, ts: Date.now() };
   } catch (err) {
@@ -86,6 +86,19 @@ export async function deleteMyApiKey(id: string): Promise<ActionState> {
     ]);
     refresh();
     return { ok: true, ts: Date.now() };
+  } catch (err) {
+    return toActionError(err);
+  }
+}
+
+export async function getMyApiKeySecret(id: string): Promise<ActionState> {
+  try {
+    const user = await requireUser();
+    if (!z.uuid().safeParse(id).success) return { error: "Key 不存在" };
+    const [row] = await db.select({ encrypted: apiKeys.keyEncrypted }).from(apiKeys).where(ownKey(user.id, id)).limit(1);
+    if (!row) return { error: "Key 不存在" };
+    if (!row.encrypted) return { error: "历史 Key 未保存完整密钥，无法复制，请使用创建时保存的密钥" };
+    return { ok: true, secret: decrypt(row.encrypted) };
   } catch (err) {
     return toActionError(err);
   }

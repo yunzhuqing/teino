@@ -115,6 +115,7 @@ export async function getApiKeys() {
         id: apiKeys.id,
         name: apiKeys.name,
         keyPrefix: apiKeys.keyPrefix,
+      canCopy: sql<boolean>`${apiKeys.keyEncrypted} is not null`,
         enabled: apiKeys.enabled,
         expiresAt: apiKeys.expiresAt,
         lastUsedAt: apiKeys.lastUsedAt,

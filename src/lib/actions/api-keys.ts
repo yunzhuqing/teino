@@ -3,7 +3,7 @@
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { requireAdmin } from "../auth";
-import { generateApiKey } from "../crypto";
+import { decrypt, encrypt, generateApiKey } from "../crypto";
 import { db } from "../db";
 import { apiKeys, entityTags } from "../db/schema";
 import type { ActionState } from "../types";
@@ -41,7 +41,7 @@ export async function createApiKey(_prev: ActionState, fd: FormData): Promise<Ac
     const { key, hash, prefix } = generateApiKey();
     const [row] = await db
       .insert(apiKeys)
-      .values({ ...data, keyHash: hash, keyPrefix: prefix })
+      .values({ ...data, keyHash: hash, keyPrefix: prefix, keyEncrypted: encrypt(key) })
       .returning({ id: apiKeys.id });
     await setEntityTags("api_key", row.id, tagIds);
     refresh();
@@ -78,4 +78,17 @@ export async function deleteApiKey(id: string): Promise<void> {
     db.delete(apiKeys).where(eq(apiKeys.id, id)),
   ]);
   refresh();
+}
+
+export async function getApiKeySecret(id: string): Promise<ActionState> {
+  try {
+    await requireAdmin();
+    if (!z.uuid().safeParse(id).success) return { error: "Key 不存在" };
+    const [row] = await db.select({ encrypted: apiKeys.keyEncrypted }).from(apiKeys).where(eq(apiKeys.id, id)).limit(1);
+    if (!row) return { error: "Key 不存在" };
+    if (!row.encrypted) return { error: "历史 Key 未保存完整密钥，无法复制，请使用创建时保存的密钥" };
+    return { ok: true, secret: decrypt(row.encrypted) };
+  } catch (err) {
+    return toActionError(err);
+  }
 }

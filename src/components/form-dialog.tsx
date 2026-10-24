@@ -75,7 +75,7 @@ function DialogBody({
     return (
       <div className="p-6">
         <h2 className="text-lg font-semibold">创建成功</h2>
-        <p className="mt-1 text-sm text-amber-600">请立即复制保存，该 Key 只会显示这一次。</p>
+        <p className="mt-1 text-sm text-amber-600">请复制保存，也可以稍后在 API Key 列表中复制。</p>
         <SecretBox value={state.secret} />
         <div className="mt-6 flex justify-end">
           <button type="button" className="btn-primary" onClick={onClose}>

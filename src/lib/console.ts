@@ -20,6 +20,7 @@ export async function getMyKeys() {
       id: apiKeys.id,
       name: apiKeys.name,
       keyPrefix: apiKeys.keyPrefix,
+      canCopy: sql<boolean>`${apiKeys.keyEncrypted} is not null`,
       enabled: apiKeys.enabled,
       expiresAt: apiKeys.expiresAt,
       lastUsedAt: apiKeys.lastUsedAt,
@@ -250,6 +251,25 @@ export async function getMyModels() {
       const primary = entries.filter((e) => e.priority === top);
       return {
         name,
+        suppliers: [...entries].sort((a, b) => b.priority - a.priority).map((e) => ({
+          id: e.modelId,
+          name: e.provider.name,
+          discount: Number(e.discount),
+          primary: e.priority === top,
+          billingMode: e.billingMode,
+          currency: e.currency,
+          apiTypes: e.modelApiType ? [...API_TYPES] : [...e.provider.apiTypes],
+          tiers: [...e.prices].sort((a, b) => a.period.localeCompare(b.period) || a.contextMin - b.contextMin).map((p) => ({
+            id: p.id,
+            period: p.period,
+            contextMin: p.contextMin,
+            contextMax: p.contextMax,
+            input: Number(p.inputPrice),
+            output: Number(p.outputPrice),
+            cacheRead: Number(p.cacheReadPrice),
+            cacheWrite: Number(p.cacheWritePrice),
+          })),
+        })),
         // 声明了上游协议的模型由网关做协议转换，任何请求协议都能调用
         apiTypes: entries.some((e) => e.modelApiType) ? [...API_TYPES] : [...new Set(entries.flatMap((e) => e.provider.apiTypes))],
         tiered: entries.some((e) => e.prices.length > 1),

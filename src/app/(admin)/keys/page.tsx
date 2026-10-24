@@ -1,3 +1,4 @@
+import { ApiKeyCopyButton } from "@/components/api-key-copy-button";
 import { Coins, KeyRound, Pencil, Plus } from "lucide-react";
 import { FormDialog } from "@/components/form-dialog";
 import { DeleteButton, ToggleSwitch } from "@/components/row-actions";
@@ -5,6 +6,7 @@ import { TagList, type TagLite } from "@/components/tag-badge";
 import { TagPicker } from "@/components/tag-picker";
 import { EmptyState, formatCreditAmount, formatDate, PageHeader } from "@/components/ui";
 import { createApiKey, deleteApiKey, toggleApiKey, updateApiKey } from "@/lib/actions/api-keys";
+import { getApiKeySecret } from "@/lib/actions/api-keys";
 import { topUpCredits } from "@/lib/actions/billing";
 import { getApiKeys, getTags, getUserOptions } from "@/lib/queries";
 import { DEFAULT_UTC_OFFSET_MINUTES } from "@/lib/timezone";
@@ -96,7 +98,7 @@ export default async function KeysPage() {
     <>
       <PageHeader
         title="API Keys"
-        description="调用方通过 Authorization: Bearer <key> 或 x-api-key 访问网关。Key 仅以哈希形式存储。"
+        description="调用方通过 Authorization: Bearer <key> 或 x-api-key 访问网关。新 Key 加密保存，可在列表中复制。"
         action={
           users.length > 0 ? (
             <FormDialog title="签发 API Key" action={createApiKey} submitLabel="生成" trigger={<><Plus className="size-4" />签发 Key</>}>
@@ -132,7 +134,10 @@ export default async function KeysPage() {
                     <tr key={k.id}>
                       <td className="font-medium">{k.name}</td>
                       <td>
-                        <code className="rounded-md bg-white/70 px-1.5 py-0.5 font-mono text-xs text-zinc-700 ring-1 ring-zinc-900/8">{k.keyPrefix}</code>
+                        <div className="flex items-center gap-2">
+                          <code className="rounded-md bg-white/70 px-1.5 py-0.5 font-mono text-xs text-zinc-700 ring-1 ring-zinc-900/8">{k.keyPrefix}</code>
+                          <ApiKeyCopyButton available={k.canCopy} getSecret={getApiKeySecret.bind(null, k.id)} />
+                        </div>
                       </td>
                       <td className="text-zinc-700">{k.userName}</td>
                       <td className={`font-mono text-sm tabular-nums ${balance <= 0 ? "text-rose-600" : "text-zinc-800"}`}>
